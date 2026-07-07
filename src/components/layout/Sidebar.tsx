@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
-  FileText, PenLine, Briefcase, LayoutKanban, CheckSquare,
+  FileText, PenLine, Briefcase, Kanban, CheckSquare,
   Coins, BookOpen, Bot, Wrench, Settings
 } from 'lucide-react'
 
@@ -28,7 +28,7 @@ const nav = [
     label: 'Operações',
     items: [
       { href: '/clientes',      icon: Briefcase,      label: 'Clientes' },
-      { href: '/projetos',      icon: LayoutKanban,   label: 'Projetos' },
+      { href: '/projetos',      icon: Kanban,   label: 'Projetos' },
       { href: '/tarefas',       icon: CheckSquare,    label: 'Tarefas' },
     ]
   },
