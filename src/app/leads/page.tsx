@@ -1,6 +1,6 @@
 'use client'
 
-import { Users, Plus, Filter, LayoutKanban, Table } from 'lucide-react'
+import { Users, Plus, Filter, Kanban, Table } from 'lucide-react'
 import Link from 'next/link'
 
 const colunas = [
@@ -60,7 +60,7 @@ export default function LeadsPage() {
           </div>
           <div className="flex bg-bg-input border border-border-subtle rounded-lg p-0.5">
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] bg-sky-950 text-accent-blue">
-              <LayoutKanban size={12} /> Kanban
+              <Kanban size={12} /> Kanban
             </div>
             <div className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-text-muted">
               <Table size={12} /> Tabela
