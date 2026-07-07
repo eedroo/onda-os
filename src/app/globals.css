@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { background-color: #080e14; color: #94a3b8; font-family: 'Inter', system-ui, sans-serif; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1a2e40; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2d4a63; }
+}
+
+@layer components {
+  .card { @apply bg-bg-card border border-border-subtle rounded-xl; }
+  .input { @apply w-full bg-bg-input border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-secondary outline-none transition-colors focus:border-brand; }
+  .select { @apply w-full bg-bg-input border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-secondary outline-none cursor-pointer; }
+  .btn { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all border; }
+  .btn-primary { @apply bg-brand text-white border-brand hover:bg-brand-dark; }
+  .btn-ghost { @apply bg-bg-input text-text-muted border-border-subtle hover:border-border-strong hover:text-text-secondary; }
+  .btn-danger { @apply bg-red-950 text-accent-red border-red-900; }
+  .pill { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium; }
+  .pill-blue   { @apply bg-sky-950 text-accent-blue; }
+  .pill-green  { @apply bg-green-950 text-accent-green; }
+  .pill-amber  { @apply bg-amber-950 text-accent-amber; }
+  .pill-purple { @apply bg-violet-950 text-accent-purple; }
+  .pill-red    { @apply bg-red-950 text-accent-red; }
+  .pill-gray   { @apply bg-slate-800 text-text-muted; }
+  .sec-title { @apply text-[10px] font-medium text-text-faint tracking-widest uppercase mb-3 flex items-center gap-1.5; }
+}
