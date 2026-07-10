@@ -41,7 +41,7 @@ export default function ClientePage() {
     { key: 'canvaUrl', label: 'Canva', icon: '🎨' },
     { key: 'dominioUrl', label: 'Site', icon: '🌐' },
     { key: 'whatsappUrl', label: 'WhatsApp', icon: '💬' },
-  ].filter(l => (cliente as Record<string, unknown>)[l.key])
+  ].filter(l => (cliente as unknown as Record<string, unknown>)[l.key])
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
@@ -112,7 +112,7 @@ export default function ClientePage() {
               {links.length ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {links.map(l => (
-                    <a key={l.key} href={(cliente as Record<string, unknown>)[l.key] as string} target="_blank" rel="noreferrer"
+                    <a key={l.key} href={(cliente as unknown as Record<string, unknown>)[l.key] as string} target="_blank" rel="noreferrer"
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)', textDecoration: 'none', transition: 'border-color 0.15s', cursor: 'pointer' }}>
                       <span style={{ fontSize: 14 }}>{l.icon}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-secondary)', flex: 1 }}>{l.label}</span>
