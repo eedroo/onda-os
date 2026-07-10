@@ -2,24 +2,41 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, Trash2, Info } from 'lucide-react'
 import { clientesService, SERVICOS_BASE, type Plano, type ClienteStatus, type ServicoCliente } from '@/lib/db'
 
-const PLANOS: Plano[] = ['ONE', 'PRESENCE', 'GROWTH']
+const PLANOS: { id: Plano; label: string; desc: string }[] = [
+  { id: 'ONE',      label: '🌊 One',      desc: 'Google Business + SEO Local' },
+  { id: 'PRESENCE', label: '🌊 Presence', desc: 'One + Landing Page' },
+  { id: 'GROWTH',   label: '🌊 Growth',   desc: 'Presence + Site completo + Blog' },
+]
+
 const FREQUENCIAS = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
+
+type FaseSite = 'SEM_SITE' | 'EM_DESENVOLVIMENTO' | 'ENTREGUE'
+
+const FASES_SITE: { id: FaseSite; label: string; desc: string }[] = [
+  { id: 'SEM_SITE',          label: 'Sem site ainda',      desc: 'Tarefas de criação activas' },
+  { id: 'EM_DESENVOLVIMENTO', label: 'Em desenvolvimento', desc: 'Site em construção' },
+  { id: 'ENTREGUE',          label: 'Site entregue',       desc: 'Tarefas de manutenção activas' },
+]
 
 export default function NovoClientePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     empresa: '', contacto: '', email: '', telefone: '',
-    plano: 'GROWTH' as Plano, mrr: 0, status: 'ATIVO' as ClienteStatus,
-    driveUrl: '', canvaUrl: '', dominioUrl: '', whatsappUrl: '', instagram: '', notas: '',
+    plano: 'GROWTH' as Plano,
+    faseSite: 'SEM_SITE' as FaseSite,
+    mrr: 0,
+    status: 'ONBOARDING' as ClienteStatus,
+    driveUrl: '', canvaUrl: '', dominioUrl: '', whatsappUrl: '', instagram: '',
+    notas: '',
   })
   const [servicos, setServicos] = useState<ServicoCliente[]>(SERVICOS_BASE['GROWTH'])
 
   function onPlanoChange(plano: Plano) {
-    setForm(f => ({ ...f, plano }))
+    setForm(f => ({ ...f, plano, faseSite: plano === 'ONE' ? 'SEM_SITE' : f.faseSite }))
     setServicos(SERVICOS_BASE[plano])
   }
 
@@ -43,7 +60,10 @@ export default function NovoClientePage() {
     if (!form.empresa) return
     setLoading(true)
     try {
-      await clientesService.create({ ...form, servicos })
+      await clientesService.create({
+        ...form,
+        servicos,
+      })
       router.push('/clientes')
     } catch (err) {
       console.error(err)
@@ -51,59 +71,76 @@ export default function NovoClientePage() {
     }
   }
 
+  const temSite = form.plano !== 'ONE'
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border-subtle bg-bg-surface flex-shrink-0">
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
+      <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
         <button onClick={() => router.back()} className="btn btn-ghost py-1 px-2"><ArrowLeft size={14} /></button>
-        <div className="text-[16px] font-medium text-text-primary">Novo cliente</div>
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>Novo cliente</div>
       </div>
 
       <form onSubmit={onSubmit} className="flex-1 overflow-auto p-5">
-        <div className="max-w-2xl mx-auto flex flex-col gap-5">
+        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Dados básicos */}
           <div className="card p-5">
-            <div className="text-[10px] font-medium text-text-faint tracking-widest uppercase mb-4">Dados básicos</div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Empresa *</label>
+            <div className="sec-title">Dados básicos</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Empresa *</label>
                 <input className="input" value={form.empresa} onChange={e => setForm(f => ({...f, empresa: e.target.value}))} required placeholder="Nome da empresa" />
               </div>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Contacto</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Contacto</label>
                 <input className="input" value={form.contacto} onChange={e => setForm(f => ({...f, contacto: e.target.value}))} placeholder="Nome do contacto" />
               </div>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Email</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Email</label>
                 <input className="input" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="email@empresa.pt" />
               </div>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Telefone</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Telefone</label>
                 <input className="input" value={form.telefone} onChange={e => setForm(f => ({...f, telefone: e.target.value}))} placeholder="+351 9xx xxx xxx" />
               </div>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Instagram</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Instagram</label>
                 <input className="input" value={form.instagram} onChange={e => setForm(f => ({...f, instagram: e.target.value}))} placeholder="@handle" />
               </div>
             </div>
           </div>
 
-          {/* Plano e MRR */}
+          {/* Plano */}
           <div className="card p-5">
-            <div className="text-[10px] font-medium text-text-faint tracking-widest uppercase mb-4">Plano & Faturação</div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="sec-title">Plano</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              {PLANOS.map(p => (
+                <button
+                  key={p.id} type="button"
+                  onClick={() => onPlanoChange(p.id)}
+                  style={{
+                    padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                    border: form.plano === p.id ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
+                    backgroundColor: form.plano === p.id ? 'color-mix(in srgb, var(--brand) 10%, transparent)' : 'var(--bg-input)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>{p.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Plano *</label>
-                <select className="select" value={form.plano} onChange={e => onPlanoChange(e.target.value as Plano)}>
-                  {PLANOS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">MRR (€)</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+                  MRR — Valor mensal (€)
+                </label>
                 <input className="input" type="number" value={form.mrr} onChange={e => setForm(f => ({...f, mrr: Number(e.target.value)}))} placeholder="0" />
+                <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 4 }}>Quanto o cliente paga por mês</div>
               </div>
               <div>
-                <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Estado</label>
+                <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Estado</label>
                 <select className="select" value={form.status} onChange={e => setForm(f => ({...f, status: e.target.value as ClienteStatus}))}>
                   <option value="ONBOARDING">Onboarding</option>
                   <option value="ATIVO">Ativo</option>
@@ -113,50 +150,80 @@ export default function NovoClientePage() {
             </div>
           </div>
 
-          {/* Serviços personalizados */}
+          {/* Fase do site — só aparece se o plano tem site */}
+          {temSite && (
+            <div className="card p-5">
+              <div className="sec-title">
+                Fase do site
+                <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  — define quais tarefas são geradas mensalmente
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {FASES_SITE.map(f => (
+                  <button
+                    key={f.id} type="button"
+                    onClick={() => setForm(x => ({...x, faseSite: f.id}))}
+                    style={{
+                      padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                      border: form.faseSite === f.id ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
+                      backgroundColor: form.faseSite === f.id ? 'color-mix(in srgb, var(--brand) 10%, transparent)' : 'var(--bg-input)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>{f.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{f.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 6, backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <Info size={12} style={{ flexShrink: 0, marginTop: 1, color: 'var(--accent-blue)' }} />
+                {form.faseSite === 'SEM_SITE' && 'As tarefas mensais não incluem manutenção de site. Quando o site for entregue, altera para "Site entregue".'}
+                {form.faseSite === 'EM_DESENVOLVIMENTO' && 'O projecto de criação do site está activo. As tarefas mensais não incluem manutenção ainda.'}
+                {form.faseSite === 'ENTREGUE' && 'O site foi entregue. As tarefas mensais incluem manutenção, backups, SEO e actualizações.'}
+              </div>
+            </div>
+          )}
+
+          {/* Serviços */}
           <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-[10px] font-medium text-text-faint tracking-widest uppercase">Serviços & Frequências</div>
-              <button type="button" onClick={addServico} className="btn btn-ghost py-1 text-[11px]">
-                <Plus size={12} /> Adicionar serviço
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div className="sec-title" style={{ marginBottom: 0 }}>Serviços & frequências</div>
+              <button type="button" onClick={addServico} className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}>
+                <Plus size={11} /> Adicionar
               </button>
             </div>
-            <div className="flex flex-col gap-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {servicos.map(s => (
-                <div key={s.id} className="flex items-center gap-2 p-2.5 bg-bg-input rounded-lg border border-border-subtle">
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
                   <input
-                    type="checkbox"
-                    checked={s.ativo}
+                    type="checkbox" checked={s.ativo}
                     onChange={e => updateServico(s.id, 'ativo', e.target.checked)}
-                    className="w-4 h-4 rounded accent-brand flex-shrink-0"
+                    style={{ width: 14, height: 14, flexShrink: 0, accentColor: 'var(--brand)', cursor: 'pointer' }}
                   />
                   <input
-                    className="flex-1 bg-transparent text-[12px] text-text-secondary outline-none"
-                    value={s.nome}
-                    onChange={e => updateServico(s.id, 'nome', e.target.value)}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 12, color: 'var(--text-secondary)' }}
+                    value={s.nome} onChange={e => updateServico(s.id, 'nome', e.target.value)}
                     placeholder="Nome do serviço"
                   />
                   <input
                     type="number"
-                    className="w-12 bg-transparent text-[12px] text-text-secondary outline-none text-center"
-                    value={s.quantidade}
-                    onChange={e => updateServico(s.id, 'quantidade', Number(e.target.value))}
+                    style={{ width: 36, background: 'transparent', border: 'none', outline: 'none', fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' }}
+                    value={s.quantidade} onChange={e => updateServico(s.id, 'quantidade', Number(e.target.value))}
                   />
                   <input
-                    className="w-16 bg-transparent text-[11px] text-text-faint outline-none"
-                    value={s.unidade}
-                    onChange={e => updateServico(s.id, 'unidade', e.target.value)}
+                    style={{ width: 56, background: 'transparent', border: 'none', outline: 'none', fontSize: 11, color: 'var(--text-faint)' }}
+                    value={s.unidade} onChange={e => updateServico(s.id, 'unidade', e.target.value)}
                     placeholder="unidade"
                   />
                   <select
-                    className="bg-transparent text-[11px] text-text-faint outline-none cursor-pointer"
-                    value={s.frequencia}
-                    onChange={e => updateServico(s.id, 'frequencia', e.target.value)}
+                    style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 11, color: 'var(--text-faint)', cursor: 'pointer' }}
+                    value={s.frequencia} onChange={e => updateServico(s.id, 'frequencia', e.target.value)}
                   >
                     {FREQUENCIAS.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
-                  <button type="button" onClick={() => removeServico(s.id)} className="text-text-faint hover:text-accent-red transition-colors">
-                    <Trash2 size={13} />
+                  <button type="button" onClick={() => removeServico(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2 }}>
+                    <Trash2 size={12} />
                   </button>
                 </div>
               ))}
@@ -165,16 +232,16 @@ export default function NovoClientePage() {
 
           {/* Links */}
           <div className="card p-5">
-            <div className="text-[10px] font-medium text-text-faint tracking-widest uppercase mb-4">Links</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="sec-title">Links</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                { key: 'driveUrl', label: 'Google Drive' },
-                { key: 'canvaUrl', label: 'Canva' },
-                { key: 'dominioUrl', label: 'Domínio / Site' },
+                { key: 'driveUrl',    label: 'Google Drive' },
+                { key: 'canvaUrl',    label: 'Canva' },
+                { key: 'dominioUrl',  label: 'Domínio / Site' },
                 { key: 'whatsappUrl', label: 'Grupo WhatsApp' },
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">{label}</label>
+                  <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>{label}</label>
                   <input
                     className="input"
                     value={(form as Record<string, unknown>)[key] as string}
@@ -188,23 +255,23 @@ export default function NovoClientePage() {
 
           {/* Notas */}
           <div className="card p-5">
-            <label className="text-[10px] text-text-faint uppercase tracking-wide block mb-1.5">Notas internas</label>
+            <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Notas internas</label>
             <textarea
-              className="input resize-none"
-              rows={3}
-              value={form.notas}
-              onChange={e => setForm(f => ({...f, notas: e.target.value}))}
+              className="input" rows={3}
+              value={form.notas} onChange={e => setForm(f => ({...f, notas: e.target.value}))}
               placeholder="Notas sobre este cliente..."
+              style={{ resize: 'none' }}
             />
           </div>
 
-          <div className="flex gap-3">
-            <button type="button" onClick={() => router.back()} className="btn btn-ghost flex-1">Cancelar</button>
-            <button type="submit" disabled={loading} className="btn btn-primary flex-1">
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" onClick={() => router.back()} className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>Cancelar</button>
+            <button type="submit" disabled={loading} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
               {loading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               Criar cliente
             </button>
           </div>
+
         </div>
       </form>
     </div>
