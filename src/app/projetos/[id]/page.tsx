@@ -57,7 +57,7 @@ export default function ProjetoPage() {
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-accent-blue" /></div>
   if (!projeto) return <div className="flex h-full items-center justify-center text-text-muted">Projeto não encontrado</div>
 
-  const categorias = [...new Set(tarefas.map(t => t.categoria))]
+  const categorias = Array.from(new Set(tarefas.map(t => t.categoria)))
   const concluidas = tarefas.filter(t => t.status === 'CONCLUIDA').length
 
   return (
