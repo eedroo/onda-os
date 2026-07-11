@@ -21,38 +21,44 @@ export default function TarefasPage() {
   const [filtro, setFiltro] = useState<Filtro>('TODAS')
   const [clienteFiltro, setClienteFiltro] = useState('TODOS')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
-        setClientes(c); setProjetos(p)
-        if (c.length) {
-          const ids = c.map(x => x.id!).filter(Boolean)
-          const t = await tarefasService.getPendentes(ids)
-          // Ordenar: atrasadas > hoje > sem data > futuras
-          const hoje = new Date().toISOString().split('T')[0]
-          t.sort((a, b) => {
-            const da = a.dataLimite || '9999-99-99'
-            const db2 = b.dataLimite || '9999-99-99'
-            return da.localeCompare(db2)
-          })
-          setTarefas(t)
-        }
-      } catch (e) { console.error(e) }
-      finally { setLoading(false) }
-    }
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
-  async function toggleTarefa(e: React.MouseEvent, tarefa: Tarefa) {
-    e.stopPropagation() // não navega para a página
-    const novo = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
-    await tarefasService.update(tarefa.id!, { status: novo, concluidaEm: novo === 'CONCLUIDA' ? new Date().toISOString() : undefined })
-    const updated = tarefas.map(t => t.id === tarefa.id ? { ...t, status: novo } : t)
-    setTarefas(updated)
-    const projetoTarefas = updated.filter(t => t.projetoId === tarefa.projetoId)
-    const concluidas = projetoTarefas.filter(t => t.status === 'CONCLUIDA').length
-    await projetosService.update(tarefa.projetoId, { progresso: Math.round((concluidas / projetoTarefas.length) * 100) })
+  async function load() {
+    try {
+      const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
+      setClientes(c)
+      setProjetos(p)
+      if (c.length) {
+        const ids = c.map(x => x.id!).filter(Boolean)
+        const t = await tarefasService.getPendentes(ids)
+        const hoje = new Date().toISOString().split('T')[0]
+        t.sort((a, b) => {
+          const da = a.dataLimite || '9999-99-99'
+          const db = b.dataLimite || '9999-99-99'
+          return da.localeCompare(db)
+        })
+        setTarefas(t)
+      }
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  async function toggleTarefa(tarefaId: string, statusAtual: string) {
+    const novoStatus = statusAtual === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
+    // Actualiza UI imediatamente (optimistic)
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t))
+    // Guarda no Firebase
+    await tarefasService.update(tarefaId, {
+      status: novoStatus,
+      concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined,
+    })
+    // Actualiza progresso do projecto
+    const tarefa = tarefas.find(t => t.id === tarefaId)
+    if (tarefa) {
+      const projetoTarefas = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t).filter(t => t.projetoId === tarefa.projetoId)
+      const concluidas = projetoTarefas.filter(t => t.status === 'CONCLUIDA').length
+      await projetosService.update(tarefa.projetoId, { progresso: Math.round((concluidas / projetoTarefas.length) * 100) })
+    }
   }
 
   const getNomeProjeto = (id: string) => projetos.find(p => p.id === id)?.nome || ''
@@ -69,10 +75,19 @@ export default function TarefasPage() {
     .map(c => ({ cliente: c, tarefas: tarefasFiltradas.filter(t => t.clienteId === c.id) }))
     .filter(g => g.tarefas.length > 0)
 
-  if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
-
-  const counts = { TODAS: tarefas.length, PENDENTE: tarefas.filter(t => t.status === 'PENDENTE').length, EM_CURSO: tarefas.filter(t => t.status === 'EM_CURSO').length, CONCLUIDA: tarefas.filter(t => t.status === 'CONCLUIDA').length }
+  const counts = {
+    TODAS: tarefas.length,
+    PENDENTE: tarefas.filter(t => t.status === 'PENDENTE').length,
+    EM_CURSO: tarefas.filter(t => t.status === 'EM_CURSO').length,
+    CONCLUIDA: tarefas.filter(t => t.status === 'CONCLUIDA').length,
+  }
   const labels: Record<Filtro, string> = { TODAS: 'Todas', PENDENTE: 'Pendentes', EM_CURSO: 'Em curso', CONCLUIDA: 'Concluídas' }
+
+  if (loading) return (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
@@ -80,7 +95,8 @@ export default function TarefasPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
           <CheckSquare size={18} style={{ color: 'var(--accent-blue)' }} /> Tarefas
         </div>
-        <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)} style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
+        <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)}
+          style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
           <option value="TODOS">Todos os clientes</option>
           {clientes.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
         </select>
@@ -88,7 +104,8 @@ export default function TarefasPage() {
 
       <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         {(['TODAS', 'PENDENTE', 'EM_CURSO', 'CONCLUIDA'] as Filtro[]).map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: filtro === f ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: filtro === f ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: filtro === f ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+          <button key={f} onClick={() => setFiltro(f)}
+            style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: filtro === f ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: filtro === f ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: filtro === f ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
             {labels[f]} <strong style={{ marginLeft: 3 }}>{counts[f]}</strong>
           </button>
         ))}
@@ -134,20 +151,24 @@ export default function TarefasPage() {
                         </div>
                         {tp.map(tarefa => {
                           const atrasada = tarefa.dataLimite && tarefa.dataLimite < hoje && tarefa.status !== 'CONCLUIDA'
-                          const eHoje = tarefa.dataLimite === hoje
+                          const eHoje = tarefa.dataLimite === hoje && tarefa.status !== 'CONCLUIDA'
                           return (
                             <div key={tarefa.id}
-                              onClick={() => router.push(`/tarefas/${tarefa.id}`)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 6px', borderRadius: 6, cursor: 'pointer', borderLeft: atrasada ? '2px solid var(--accent-red)' : eHoje ? '2px solid var(--brand)' : '2px solid transparent', transition: 'background-color 0.12s' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 6px', borderRadius: 6, cursor: 'pointer', borderLeft: atrasada ? '2px solid var(--accent-red)' : eHoje ? '2px solid var(--brand)' : '2px solid transparent' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-input)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              onClick={() => router.push(`/tarefas/${tarefa.id}`)}
                             >
-                              <div onClick={e => toggleTarefa(e, tarefa)} style={{ flexShrink: 0 }}>
+                              {/* Checkbox — stopPropagation para não navegar */}
+                              <button
+                                onClick={e => { e.stopPropagation(); toggleTarefa(tarefa.id!, tarefa.status) }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                              >
                                 {tarefa.status === 'CONCLUIDA'
                                   ? <CheckSquare size={15} style={{ color: 'var(--brand)' }} />
                                   : <Square size={15} style={{ color: 'var(--text-faint)' }} />
                                 }
-                              </div>
+                              </button>
                               <span style={{ fontSize: 12.5, flex: 1, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
                                 {tarefa.titulo}
                               </span>
