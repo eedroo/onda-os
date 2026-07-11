@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CheckSquare, Square, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { clientesService, tarefasService, projetosService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
 
 type Filtro = 'TODAS' | 'PENDENTE' | 'EM_CURSO' | 'CONCLUIDA'
@@ -11,14 +12,8 @@ const CATEGORIA_EMOJI: Record<string, string> = {
   'Blog': '✍️', 'Relatório': '📊', 'Estratégia': '🎯',
 }
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  PENDENTE:  { bg: 'var(--pill-gray-bg)',  color: 'var(--text-muted)',   label: 'Pendente' },
-  EM_CURSO:  { bg: 'var(--pill-blue-bg)',  color: 'var(--accent-blue)',  label: 'Em curso' },
-  CONCLUIDA: { bg: 'var(--pill-green-bg)', color: 'var(--accent-green)', label: 'Concluída' },
-  BLOQUEADA: { bg: 'var(--pill-red-bg)',   color: 'var(--accent-red)',   label: 'Bloqueada' },
-}
-
 export default function TarefasPage() {
+  const router = useRouter()
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
@@ -28,19 +23,29 @@ export default function TarefasPage() {
 
   useEffect(() => {
     async function load() {
-      const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
-      setClientes(c); setProjetos(p)
-      if (c.length) {
-        const ids = c.map(x => x.id!).filter(Boolean)
-        const t = await tarefasService.getPendentes(ids)
-        setTarefas(t)
-      }
-      setLoading(false)
+      try {
+        const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
+        setClientes(c); setProjetos(p)
+        if (c.length) {
+          const ids = c.map(x => x.id!).filter(Boolean)
+          const t = await tarefasService.getPendentes(ids)
+          // Ordenar: atrasadas > hoje > sem data > futuras
+          const hoje = new Date().toISOString().split('T')[0]
+          t.sort((a, b) => {
+            const da = a.dataLimite || '9999-99-99'
+            const db2 = b.dataLimite || '9999-99-99'
+            return da.localeCompare(db2)
+          })
+          setTarefas(t)
+        }
+      } catch (e) { console.error(e) }
+      finally { setLoading(false) }
     }
     load()
   }, [])
 
-  async function toggleTarefa(tarefa: Tarefa) {
+  async function toggleTarefa(e: React.MouseEvent, tarefa: Tarefa) {
+    e.stopPropagation() // não navega para a página
     const novo = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
     await tarefasService.update(tarefa.id!, { status: novo, concluidaEm: novo === 'CONCLUIDA' ? new Date().toISOString() : undefined })
     const updated = tarefas.map(t => t.id === tarefa.id ? { ...t, status: novo } : t)
@@ -51,6 +56,7 @@ export default function TarefasPage() {
   }
 
   const getNomeProjeto = (id: string) => projetos.find(p => p.id === id)?.nome || ''
+  const hoje = new Date().toISOString().split('T')[0]
 
   const tarefasFiltradas = tarefas.filter(t => {
     if (filtro !== 'TODAS' && t.status !== filtro) return false
@@ -63,13 +69,13 @@ export default function TarefasPage() {
     .map(c => ({ cliente: c, tarefas: tarefasFiltradas.filter(t => t.clienteId === c.id) }))
     .filter(g => g.tarefas.length > 0)
 
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
+  if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
 
   const counts = { TODAS: tarefas.length, PENDENTE: tarefas.filter(t => t.status === 'PENDENTE').length, EM_CURSO: tarefas.filter(t => t.status === 'EM_CURSO').length, CONCLUIDA: tarefas.filter(t => t.status === 'CONCLUIDA').length }
-  const labels = { TODAS: 'Todas', PENDENTE: 'Pendentes', EM_CURSO: 'Em curso', CONCLUIDA: 'Concluídas' }
+  const labels: Record<Filtro, string> = { TODAS: 'Todas', PENDENTE: 'Pendentes', EM_CURSO: 'Em curso', CONCLUIDA: 'Concluídas' }
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
           <CheckSquare size={18} style={{ color: 'var(--accent-blue)' }} /> Tarefas
@@ -88,7 +94,7 @@ export default function TarefasPage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto p-5">
+      <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         {tarefas.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10, textAlign: 'center' }}>
             <CheckSquare size={32} style={{ color: 'var(--accent-blue)', opacity: 0.5 }} />
@@ -99,7 +105,7 @@ export default function TarefasPage() {
           <div style={{ maxWidth: 700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
             {porCliente.map(({ cliente, tarefas: tc }) => {
               const concluidas = tc.filter(t => t.status === 'CONCLUIDA').length
-              const progresso = Math.round((concluidas / tc.length) * 100)
+              const progresso = tc.length > 0 ? Math.round((concluidas / tc.length) * 100) : 0
               const projetosIds = Array.from(new Set(tc.map(t => t.projetoId)))
               return (
                 <div key={cliente.id} className="card" style={{ padding: 16 }}>
@@ -126,22 +132,34 @@ export default function TarefasPage() {
                         <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5, paddingLeft: 2 }}>
                           {getNomeProjeto(projetoId)}
                         </div>
-                        {tp.map(tarefa => (
-                          <div key={tarefa.id} onClick={() => toggleTarefa(tarefa)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 5px', borderRadius: 5, cursor: 'pointer' }}
-                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-input)')}
-                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                          >
-                            {tarefa.status === 'CONCLUIDA'
-                              ? <CheckSquare size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-                              : <Square size={14} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
-                            }
-                            <span style={{ fontSize: 12.5, flex: 1, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
-                              {tarefa.titulo}
-                            </span>
-                            <span style={{ fontSize: 13 }}>{CATEGORIA_EMOJI[tarefa.categoria] || '📌'}</span>
-                          </div>
-                        ))}
+                        {tp.map(tarefa => {
+                          const atrasada = tarefa.dataLimite && tarefa.dataLimite < hoje && tarefa.status !== 'CONCLUIDA'
+                          const eHoje = tarefa.dataLimite === hoje
+                          return (
+                            <div key={tarefa.id}
+                              onClick={() => router.push(`/tarefas/${tarefa.id}`)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 6px', borderRadius: 6, cursor: 'pointer', borderLeft: atrasada ? '2px solid var(--accent-red)' : eHoje ? '2px solid var(--brand)' : '2px solid transparent', transition: 'background-color 0.12s' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-input)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <div onClick={e => toggleTarefa(e, tarefa)} style={{ flexShrink: 0 }}>
+                                {tarefa.status === 'CONCLUIDA'
+                                  ? <CheckSquare size={15} style={{ color: 'var(--brand)' }} />
+                                  : <Square size={15} style={{ color: 'var(--text-faint)' }} />
+                                }
+                              </div>
+                              <span style={{ fontSize: 12.5, flex: 1, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
+                                {tarefa.titulo}
+                              </span>
+                              <span style={{ fontSize: 13 }}>{CATEGORIA_EMOJI[tarefa.categoria] || '📌'}</span>
+                              {tarefa.dataLimite && (
+                                <span style={{ fontSize: 10, color: atrasada ? 'var(--accent-red)' : eHoje ? 'var(--brand)' : 'var(--text-faint)', fontWeight: atrasada || eHoje ? 500 : 400 }}>
+                                  {atrasada ? '⚠️ ' : eHoje ? '📅 ' : ''}{tarefa.dataLimite}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     )
                   })}
