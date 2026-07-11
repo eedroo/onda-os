@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { projetosService, clientesService, type Projeto, type Cliente } from '@/lib/db'
 
 const COLS = [
-  { id: 'PLANEAMENTO', label: 'Planeamento', color: 'text-accent-blue',   border: 'border-t-sky-500' },
-  { id: 'EXECUCAO',    label: 'Execução',    color: 'text-accent-amber',  border: 'border-t-amber-500' },
-  { id: 'APROVACAO',   label: 'Aprovação',   color: 'text-orange-400',    border: 'border-t-orange-500' },
-  { id: 'ENTREGA',     label: 'Entrega',     color: 'text-accent-purple', border: 'border-t-violet-500' },
-  { id: 'CONCLUIDO',   label: 'Concluído',   color: 'text-accent-green',  border: 'border-t-green-500' },
+  { id: 'PLANEAMENTO', label: 'Planeamento', color: 'var(--accent-blue)',   border: 'var(--accent-blue)' },
+  { id: 'EXECUCAO',    label: 'Execução',    color: 'var(--accent-amber)',  border: 'var(--accent-amber)' },
+  { id: 'APROVACAO',   label: 'Aprovação',   color: '#fb923c',              border: '#fb923c' },
+  { id: 'ENTREGA',     label: 'Entrega',     color: 'var(--accent-purple)', border: 'var(--accent-purple)' },
+  { id: 'CONCLUIDO',   label: 'Concluído',   color: 'var(--accent-green)',  border: 'var(--accent-green)' },
 ]
 
 const PLANO_COLOR: Record<string, string> = { ONE: 'pill-green', PRESENCE: 'pill-purple', GROWTH: 'pill-blue' }
@@ -22,34 +22,52 @@ export default function ProjetosPage() {
   const [criando, setCriando] = useState(false)
 
   useEffect(() => {
-    Promise.all([projetosService.getAll(), clientesService.getAll()]).then(([p, c]) => {
-      setProjetos(p); setClientes(c); setLoading(false)
-    })
+    load()
   }, [])
+
+  async function load() {
+    try {
+      const [p, c] = await Promise.all([projetosService.getAll(), clientesService.getAll()])
+      setProjetos(p)
+      setClientes(c)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function criarMensais() {
     setCriando(true)
-    const mes = new Date().getMonth() + 1
-    const ano = new Date().getFullYear()
-    for (const c of clientes.filter(x => x.status === 'ATIVO')) {
-      if (!projetos.find(p => p.clienteId === c.id && p.mes === mes && p.ano === ano)) {
-        await projetosService.criarMensal(c, mes, ano)
+    try {
+      const mes = new Date().getMonth() + 1
+      const ano = new Date().getFullYear()
+      const ativos = clientes.filter(c => c.status === 'ATIVO')
+      for (const c of ativos) {
+        const jaExiste = projetos.find(p => p.clienteId === c.id && p.mes === mes && p.ano === ano)
+        if (!jaExiste) await projetosService.criarMensal(c, mes, ano)
       }
+      await load()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setCriando(false)
     }
-    const updated = await projetosService.getAll()
-    setProjetos(updated)
-    setCriando(false)
   }
 
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-accent-blue" /></div>
+  if (loading) return (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-bg-surface flex-shrink-0">
-        <div className="flex items-center gap-2 text-[16px] font-medium text-text-primary">
-          <Kanban size={18} className="text-accent-blue" /> Projetos
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
+          <Kanban size={18} style={{ color: 'var(--accent-blue)' }} /> Projetos
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={criarMensais} disabled={criando} className="btn btn-ghost">
             {criando ? <Loader2 size={13} className="animate-spin" /> : <Calendar size={13} />}
             Criar projetos do mês
@@ -58,61 +76,52 @@ export default function ProjetosPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5 px-5 py-2 border-b border-border-subtle text-[12px] text-text-muted flex-shrink-0">
-        <span>Ativos <strong className="text-accent-blue ml-1">{projetos.filter(p => p.status !== 'CONCLUIDO').length}</strong></span>
-        <span>Concluídos <strong className="text-accent-green ml-1">{projetos.filter(p => p.status === 'CONCLUIDO').length}</strong></span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>
+        <span>Ativos <strong style={{ color: 'var(--accent-blue)', marginLeft: 4 }}>{projetos.filter(p => p.status !== 'CONCLUIDO').length}</strong></span>
+        <span>Concluídos <strong style={{ color: 'var(--accent-green)', marginLeft: 4 }}>{projetos.filter(p => p.status === 'CONCLUIDO').length}</strong></span>
       </div>
 
       {projetos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center">
-          <div className="w-12 h-12 rounded-xl bg-sky-950 flex items-center justify-center">
-            <Kanban size={20} className="text-accent-blue" />
-          </div>
-          <div className="text-[14px] font-medium text-text-primary">Sem projetos ainda</div>
-          <div className="text-[12px] text-text-muted">Clica abaixo para gerar os projetos do mês para todos os clientes ativos</div>
-          <button onClick={criarMensais} disabled={criando} className="btn btn-primary mt-1">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, textAlign: 'center' }}>
+          <Kanban size={32} style={{ color: 'var(--accent-blue)', opacity: 0.5 }} />
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>Sem projetos ainda</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Adiciona clientes primeiro, depois clica em "Criar projetos do mês"</div>
+          <button onClick={criarMensais} disabled={criando} className="btn btn-primary" style={{ marginTop: 4 }}>
             {criando ? <Loader2 size={13} className="animate-spin" /> : <Calendar size={13} />}
             Criar projetos do mês
           </button>
         </div>
       ) : (
-        <div className="flex gap-2.5 p-4 overflow-x-auto flex-1 items-start">
+        <div style={{ display: 'flex', gap: 10, padding: 16, overflowX: 'auto', flex: 1, alignItems: 'flex-start' }}>
           {COLS.map(col => {
             const items = projetos.filter(p => p.status === col.id)
             return (
-              <div key={col.id} className="w-[220px] flex-shrink-0 flex flex-col gap-2">
-                <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg card border-t-2 ${col.border}`}>
-                  <span className={`text-[11px] font-medium uppercase tracking-wider ${col.color}`}>{col.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bg-input text-text-muted">{items.length}</span>
+              <div key={col.id} style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: `2px solid ${col.border}` }}>
+                  <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
+                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
                 </div>
                 {items.map(p => (
-                  <Link key={p.id} href={`/projetos/${p.id}`}>
-                    <div className="card p-3 hover:border-border-strong cursor-pointer transition-all">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="text-[12.5px] font-medium text-text-primary leading-tight">{p.nome}</div>
-                        <span className={`pill ${PLANO_COLOR[p.clientePlano]} text-[9px] flex-shrink-0`}>{p.clientePlano}</span>
+                  <Link key={p.id} href={`/projetos/${p.id}`} style={{ textDecoration: 'none' }}>
+                    <div className="card" style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, marginBottom: 8 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{p.nome}</div>
+                        <span className={`pill ${PLANO_COLOR[p.clientePlano]}`} style={{ fontSize: 9, flexShrink: 0 }}>{p.clientePlano}</span>
                       </div>
-                      <div className="mb-2">
-                        <div className="flex justify-between text-[10px] text-text-faint mb-1">
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-faint)', marginBottom: 4 }}>
                           <span>Progresso</span><span>{p.progresso}%</span>
                         </div>
-                        <div className="h-1 bg-border-subtle rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-brand" style={{ width: `${p.progresso}%` }} />
+                        <div style={{ height: 3, backgroundColor: 'var(--border-subtle)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${p.progresso}%`, backgroundColor: 'var(--brand)', borderRadius: 2 }} />
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-border-subtle">
-                        <span className="text-[10px] text-text-faint">
-                          {new Date(p.ano, p.mes - 1).toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}
-                        </span>
-                        <span className="text-[10px] text-accent-blue">Ver →</span>
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--accent-blue)', textAlign: 'right', marginTop: 4 }}>Ver tarefas →</div>
                     </div>
                   </Link>
                 ))}
                 {items.length === 0 && (
-                  <div className="px-3 py-6 text-center text-[11px] text-text-faint border border-dashed border-border-subtle rounded-lg">
-                    Vazio
-                  </div>
+                  <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', border: '1px dashed var(--border-subtle)', borderRadius: 8 }}>Vazio</div>
                 )}
               </div>
             )
