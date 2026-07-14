@@ -26,17 +26,11 @@ export default function TarefasPage() {
   async function load() {
     try {
       const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
-      setClientes(c)
-      setProjetos(p)
+      setClientes(c); setProjetos(p)
       if (c.length) {
         const ids = c.map(x => x.id!).filter(Boolean)
-        const t = await tarefasService.getPendentes(ids)
-        const hoje = new Date().toISOString().split('T')[0]
-        t.sort((a, b) => {
-          const da = a.dataLimite || '9999-99-99'
-          const db = b.dataLimite || '9999-99-99'
-          return da.localeCompare(db)
-        })
+        const t = await tarefasService.getByClientes(ids)
+        t.sort((a, b) => (a.dataLimite || '9999').localeCompare(b.dataLimite || '9999'))
         setTarefas(t)
       }
     } catch (e) { console.error(e) }
@@ -45,19 +39,13 @@ export default function TarefasPage() {
 
   async function toggleTarefa(tarefaId: string, statusAtual: string) {
     const novoStatus = statusAtual === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
-    // Actualiza UI imediatamente (optimistic)
     setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t))
-    // Guarda no Firebase
-    await tarefasService.update(tarefaId, {
-      status: novoStatus,
-      concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined,
-    })
-    // Actualiza progresso do projecto
+    await tarefasService.update(tarefaId, { status: novoStatus, concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined })
     const tarefa = tarefas.find(t => t.id === tarefaId)
     if (tarefa) {
-      const projetoTarefas = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t).filter(t => t.projetoId === tarefa.projetoId)
-      const concluidas = projetoTarefas.filter(t => t.status === 'CONCLUIDA').length
-      await projetosService.update(tarefa.projetoId, { progresso: Math.round((concluidas / projetoTarefas.length) * 100) })
+      const pt = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t).filter(t => t.projetoId === tarefa.projetoId)
+      const conc = pt.filter(t => t.status === 'CONCLUIDA').length
+      await projetosService.update(tarefa.projetoId, { progresso: Math.round((conc / pt.length) * 100) })
     }
   }
 
@@ -75,19 +63,10 @@ export default function TarefasPage() {
     .map(c => ({ cliente: c, tarefas: tarefasFiltradas.filter(t => t.clienteId === c.id) }))
     .filter(g => g.tarefas.length > 0)
 
-  const counts = {
-    TODAS: tarefas.length,
-    PENDENTE: tarefas.filter(t => t.status === 'PENDENTE').length,
-    EM_CURSO: tarefas.filter(t => t.status === 'EM_CURSO').length,
-    CONCLUIDA: tarefas.filter(t => t.status === 'CONCLUIDA').length,
-  }
+  const counts = { TODAS: tarefas.length, PENDENTE: tarefas.filter(t => t.status === 'PENDENTE').length, EM_CURSO: tarefas.filter(t => t.status === 'EM_CURSO').length, CONCLUIDA: tarefas.filter(t => t.status === 'CONCLUIDA').length }
   const labels: Record<Filtro, string> = { TODAS: 'Todas', PENDENTE: 'Pendentes', EM_CURSO: 'Em curso', CONCLUIDA: 'Concluídas' }
 
-  if (loading) return (
-    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-      <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
-    </div>
-  )
+  if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
@@ -95,22 +74,18 @@ export default function TarefasPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
           <CheckSquare size={18} style={{ color: 'var(--accent-blue)' }} /> Tarefas
         </div>
-        <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)}
-          style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
+        <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)} style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
           <option value="TODOS">Todos os clientes</option>
           {clientes.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
         </select>
       </div>
-
       <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         {(['TODAS', 'PENDENTE', 'EM_CURSO', 'CONCLUIDA'] as Filtro[]).map(f => (
-          <button key={f} onClick={() => setFiltro(f)}
-            style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: filtro === f ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: filtro === f ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: filtro === f ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: filtro === f ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: filtro === f ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: filtro === f ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
             {labels[f]} <strong style={{ marginLeft: 3 }}>{counts[f]}</strong>
           </button>
         ))}
       </div>
-
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         {tarefas.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10, textAlign: 'center' }}>
@@ -141,29 +116,23 @@ export default function TarefasPage() {
                       <span style={{ fontSize: 11, color: 'var(--accent-blue)' }}>{progresso}%</span>
                     </div>
                   </div>
-
                   {projetosIds.map(projetoId => {
                     const tp = tc.filter(t => t.projetoId === projetoId)
                     return (
                       <div key={projetoId} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5, paddingLeft: 2 }}>
-                          {getNomeProjeto(projetoId)}
-                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5, paddingLeft: 2 }}>{getNomeProjeto(projetoId)}</div>
                         {tp.map(tarefa => {
                           const atrasada = tarefa.dataLimite && tarefa.dataLimite < hoje && tarefa.status !== 'CONCLUIDA'
                           const eHoje = tarefa.dataLimite === hoje && tarefa.status !== 'CONCLUIDA'
                           return (
                             <div key={tarefa.id}
+                              onClick={() => router.push(`/tarefas/${tarefa.id}`)}
                               style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 6px', borderRadius: 6, cursor: 'pointer', borderLeft: atrasada ? '2px solid var(--accent-red)' : eHoje ? '2px solid var(--brand)' : '2px solid transparent' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-input)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                              onClick={() => router.push(`/tarefas/${tarefa.id}`)}
                             >
-                              {/* Checkbox — stopPropagation para não navegar */}
-                              <button
-                                onClick={e => { e.stopPropagation(); toggleTarefa(tarefa.id!, tarefa.status) }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}
-                              >
+                              <button onClick={e => { e.stopPropagation(); toggleTarefa(tarefa.id!, tarefa.status) }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                                 {tarefa.status === 'CONCLUIDA'
                                   ? <CheckSquare size={15} style={{ color: 'var(--brand)' }} />
                                   : <Square size={15} style={{ color: 'var(--text-faint)' }} />
@@ -174,7 +143,7 @@ export default function TarefasPage() {
                               </span>
                               <span style={{ fontSize: 13 }}>{CATEGORIA_EMOJI[tarefa.categoria] || '📌'}</span>
                               {tarefa.dataLimite && (
-                                <span style={{ fontSize: 10, color: atrasada ? 'var(--accent-red)' : eHoje ? 'var(--brand)' : 'var(--text-faint)', fontWeight: atrasada || eHoje ? 500 : 400 }}>
+                                <span style={{ fontSize: 10, color: atrasada ? 'var(--accent-red)' : eHoje ? 'var(--brand)' : 'var(--text-faint)' }}>
                                   {atrasada ? '⚠️ ' : eHoje ? '📅 ' : ''}{tarefa.dataLimite}
                                 </span>
                               )}
@@ -187,9 +156,7 @@ export default function TarefasPage() {
                 </div>
               )
             })}
-            {porCliente.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-faint)', fontSize: 13 }}>Nenhuma tarefa com este filtro</div>
-            )}
+            {porCliente.length === 0 && <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-faint)', fontSize: 13 }}>Nenhuma tarefa com este filtro</div>}
           </div>
         )}
       </div>
