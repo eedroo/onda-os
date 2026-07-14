@@ -1,7 +1,6 @@
 import {
   collection, doc, addDoc, updateDoc, getDoc,
-  getDocs, query, orderBy, where,
-  serverTimestamp, Timestamp, writeBatch
+  getDocs, serverTimestamp, Timestamp, writeBatch
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -13,93 +12,39 @@ export type Frequencia = 'DIARIA' | 'SEMANAL' | 'QUINZENAL' | 'MENSAL' | 'PONTUA
 export type EstadoPagamento = 'PAGO' | 'AGUARDA' | 'ATRASO' | 'CANCELADO'
 
 export interface ServicoCliente {
-  id: string
-  nome: string
-  ativo: boolean
-  frequencia: Frequencia
-  quantidade: number
-  unidade: string
-  notas?: string
+  id: string; nome: string; ativo: boolean
+  frequencia: Frequencia; quantidade: number; unidade: string; notas?: string
 }
 
 export interface Cliente {
-  id?: string
-  empresa: string
-  contacto?: string
-  email?: string
-  telefone?: string
-  plano: Plano
-  mrr: number
-  status: ClienteStatus
-  clienteDesde?: string
-  renovacao?: string
-  driveUrl?: string
-  canvaUrl?: string
-  dominioUrl?: string
-  whatsappUrl?: string
-  instagram?: string
-  faseSite?: string
-  servicos: ServicoCliente[]
-  notas?: string
-  createdAt?: Timestamp
+  id?: string; empresa: string; contacto?: string; email?: string; telefone?: string
+  plano: Plano; mrr: number; status: ClienteStatus; clienteDesde?: string; renovacao?: string
+  driveUrl?: string; canvaUrl?: string; dominioUrl?: string; whatsappUrl?: string
+  instagram?: string; faseSite?: string; servicos: ServicoCliente[]; notas?: string; createdAt?: Timestamp
 }
 
 export interface Projeto {
-  id?: string
-  clienteId: string
-  clienteNome: string
-  clientePlano: Plano
-  nome: string
-  mes: number
-  ano: number
-  status: ProjectStatus
-  progresso: number
-  notas?: string
-  createdAt?: Timestamp
+  id?: string; clienteId: string; clienteNome: string; clientePlano: Plano
+  nome: string; mes: number; ano: number; status: ProjectStatus; progresso: number
+  notas?: string; createdAt?: Timestamp
 }
 
 export interface Tarefa {
-  id?: string
-  projetoId: string
-  clienteId: string
-  titulo: string
-  descricao?: string
-  status: TarefaStatus
-  ordem: number
-  categoria: string
-  frequencia?: Frequencia
-  dataLimite?: string
-  concluidaEm?: string
-  createdAt?: Timestamp
+  id?: string; projetoId: string; clienteId: string; titulo: string; descricao?: string
+  status: TarefaStatus; ordem: number; categoria: string; frequencia?: Frequencia
+  dataLimite?: string; concluidaEm?: string; createdAt?: Timestamp
 }
 
 export interface Receita {
-  id?: string
-  clienteId: string
-  clienteNome?: string
-  descricao: string
-  tipo: string
-  valor: number
-  data: string
-  estado: EstadoPagamento
-  recorrente: boolean
-  notas?: string
-  createdAt?: Timestamp
+  id?: string; clienteId: string; clienteNome?: string; descricao: string; tipo: string
+  valor: number; data: string; estado: EstadoPagamento; recorrente: boolean; notas?: string; createdAt?: Timestamp
 }
 
 export interface Despesa {
-  id?: string
-  descricao: string
-  categoria: string
-  valor: number
-  data: string
-  estado: EstadoPagamento
-  recorrente: boolean
-  notas?: string
-  createdAt?: Timestamp
+  id?: string; descricao: string; categoria: string; valor: number; data: string
+  estado: EstadoPagamento; recorrente: boolean; notas?: string; createdAt?: Timestamp
 }
 
-// Templates
 export const TAREFAS_ONE = [
   { titulo: 'Publicações Google Business',  categoria: 'Google Business', status: 'PENDENTE' as TarefaStatus, ordem: 1 },
   { titulo: 'Atualização de informações',   categoria: 'Google Business', status: 'PENDENTE' as TarefaStatus, ordem: 2 },
@@ -112,24 +57,24 @@ export const TAREFAS_ONE = [
 
 export const TAREFAS_PRESENCE = [
   ...TAREFAS_ONE,
-  { titulo: 'Manutenção do site',           categoria: 'Site',            status: 'PENDENTE' as TarefaStatus, ordem: 8 },
-  { titulo: 'Backup do site',               categoria: 'Site',            status: 'PENDENTE' as TarefaStatus, ordem: 9 },
-  { titulo: 'Verificar velocidade',         categoria: 'Site',            status: 'PENDENTE' as TarefaStatus, ordem: 10 },
-  { titulo: 'SEO on-page — revisão',        categoria: 'SEO',             status: 'PENDENTE' as TarefaStatus, ordem: 11 },
-  { titulo: 'Alterações solicitadas',       categoria: 'Site',            status: 'PENDENTE' as TarefaStatus, ordem: 12 },
+  { titulo: 'Manutenção do site',           categoria: 'Site', status: 'PENDENTE' as TarefaStatus, ordem: 8 },
+  { titulo: 'Backup do site',               categoria: 'Site', status: 'PENDENTE' as TarefaStatus, ordem: 9 },
+  { titulo: 'Verificar velocidade',         categoria: 'Site', status: 'PENDENTE' as TarefaStatus, ordem: 10 },
+  { titulo: 'SEO on-page — revisão',        categoria: 'SEO',  status: 'PENDENTE' as TarefaStatus, ordem: 11 },
+  { titulo: 'Alterações solicitadas',       categoria: 'Site', status: 'PENDENTE' as TarefaStatus, ordem: 12 },
 ]
 
 export const TAREFAS_GROWTH = [
   ...TAREFAS_PRESENCE,
-  { titulo: 'Estratégia do mês',            categoria: 'Estratégia',      status: 'PENDENTE' as TarefaStatus, ordem: 13 },
-  { titulo: 'Artigo de blog #1',            categoria: 'Blog',            status: 'PENDENTE' as TarefaStatus, ordem: 14 },
-  { titulo: 'Artigo de blog #2',            categoria: 'Blog',            status: 'PENDENTE' as TarefaStatus, ordem: 15 },
-  { titulo: 'Artigo de blog #3',            categoria: 'Blog',            status: 'PENDENTE' as TarefaStatus, ordem: 16 },
-  { titulo: 'Artigo de blog #4',            categoria: 'Blog',            status: 'PENDENTE' as TarefaStatus, ordem: 17 },
-  { titulo: 'Análise de métricas — site',   categoria: 'SEO',             status: 'PENDENTE' as TarefaStatus, ordem: 18 },
-  { titulo: 'Análise de palavras-chave',    categoria: 'SEO',             status: 'PENDENTE' as TarefaStatus, ordem: 19 },
-  { titulo: 'Acompanhamento estratégico',   categoria: 'Estratégia',      status: 'PENDENTE' as TarefaStatus, ordem: 20 },
-  { titulo: 'Relatório avançado',           categoria: 'Relatório',       status: 'PENDENTE' as TarefaStatus, ordem: 21 },
+  { titulo: 'Estratégia do mês',            categoria: 'Estratégia', status: 'PENDENTE' as TarefaStatus, ordem: 13 },
+  { titulo: 'Artigo de blog #1',            categoria: 'Blog',       status: 'PENDENTE' as TarefaStatus, ordem: 14 },
+  { titulo: 'Artigo de blog #2',            categoria: 'Blog',       status: 'PENDENTE' as TarefaStatus, ordem: 15 },
+  { titulo: 'Artigo de blog #3',            categoria: 'Blog',       status: 'PENDENTE' as TarefaStatus, ordem: 16 },
+  { titulo: 'Artigo de blog #4',            categoria: 'Blog',       status: 'PENDENTE' as TarefaStatus, ordem: 17 },
+  { titulo: 'Análise de métricas — site',   categoria: 'SEO',        status: 'PENDENTE' as TarefaStatus, ordem: 18 },
+  { titulo: 'Análise de palavras-chave',    categoria: 'SEO',        status: 'PENDENTE' as TarefaStatus, ordem: 19 },
+  { titulo: 'Acompanhamento estratégico',   categoria: 'Estratégia', status: 'PENDENTE' as TarefaStatus, ordem: 20 },
+  { titulo: 'Relatório avançado',           categoria: 'Relatório',  status: 'PENDENTE' as TarefaStatus, ordem: 21 },
 ]
 
 export function getTarefasPorPlano(plano: Plano) {
@@ -140,10 +85,10 @@ export function getTarefasPorPlano(plano: Plano) {
 
 export const SERVICOS_BASE: Record<Plano, ServicoCliente[]> = {
   ONE: [
-    { id: 'google-posts',   nome: 'Publicações Google Business', ativo: true, frequencia: 'SEMANAL', quantidade: 4,  unidade: 'posts' },
-    { id: 'google-reviews', nome: 'Gestão de avaliações',        ativo: true, frequencia: 'MENSAL',  quantidade: 1,  unidade: 'revisão' },
-    { id: 'seo-local',      nome: 'SEO Local',                   ativo: true, frequencia: 'MENSAL',  quantidade: 1,  unidade: 'análise' },
-    { id: 'relatorio',      nome: 'Relatório mensal',            ativo: true, frequencia: 'MENSAL',  quantidade: 1,  unidade: 'relatório' },
+    { id: 'google-posts',   nome: 'Publicações Google Business', ativo: true, frequencia: 'SEMANAL', quantidade: 4, unidade: 'posts' },
+    { id: 'google-reviews', nome: 'Gestão de avaliações',        ativo: true, frequencia: 'MENSAL',  quantidade: 1, unidade: 'revisão' },
+    { id: 'seo-local',      nome: 'SEO Local',                   ativo: true, frequencia: 'MENSAL',  quantidade: 1, unidade: 'análise' },
+    { id: 'relatorio',      nome: 'Relatório mensal',            ativo: true, frequencia: 'MENSAL',  quantidade: 1, unidade: 'relatório' },
   ],
   PRESENCE: [
     { id: 'google-posts',    nome: 'Publicações Google Business', ativo: true, frequencia: 'SEMANAL', quantidade: 4, unidade: 'posts' },
@@ -193,9 +138,7 @@ export const projetosService = {
   },
   async getByCliente(clienteId: string): Promise<Projeto[]> {
     const snap = await getDocs(collection(db, 'projetos'))
-    return snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Projeto))
-      .filter(p => p.clienteId === clienteId)
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Projeto)).filter(p => p.clienteId === clienteId)
   },
   async criarMensal(cliente: Cliente, mes: number, ano: number): Promise<string> {
     const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-PT', { month: 'long' })
@@ -204,12 +147,9 @@ export const projetosService = {
       nome: `${cliente.empresa} — ${nomeMes} ${ano}`,
       mes, ano, status: 'EXECUCAO', progresso: 0, createdAt: serverTimestamp(),
     })
-    const tarefasBase = getTarefasPorPlano(cliente.plano)
     const batch = writeBatch(db)
-    tarefasBase.forEach(t => {
-      batch.set(doc(collection(db, 'tarefas')), {
-        ...t, projetoId: projetoRef.id, clienteId: cliente.id, createdAt: serverTimestamp(),
-      })
+    getTarefasPorPlano(cliente.plano).forEach(t => {
+      batch.set(doc(collection(db, 'tarefas')), { ...t, projetoId: projetoRef.id, clienteId: cliente.id, createdAt: serverTimestamp() })
     })
     await batch.commit()
     return projetoRef.id
@@ -221,24 +161,25 @@ export const projetosService = {
 
 // ─── Tarefas ──────────────────────────────────────────────────────────────────
 export const tarefasService = {
-  // Busca todas as tarefas de um projecto — simples, sem orderBy para evitar índice
   async getByProjeto(projetoId: string): Promise<Tarefa[]> {
     const snap = await getDocs(collection(db, 'tarefas'))
-    return snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Tarefa))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tarefa))
       .filter(t => t.projetoId === projetoId)
       .sort((a, b) => a.ordem - b.ordem)
   },
-  // Busca tarefa por ID directamente
   async getById(id: string): Promise<Tarefa | null> {
     const snap = await getDoc(doc(db, 'tarefas', id))
     return snap.exists() ? { id: snap.id, ...snap.data() } as Tarefa : null
   },
-  // Busca todas as tarefas de vários clientes — sem where composto para evitar índice
+  // Busca TODAS as tarefas dos clientes (incluindo concluídas)
+  async getByClientes(clienteIds: string[]): Promise<Tarefa[]> {
+    const snap = await getDocs(collection(db, 'tarefas'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tarefa))
+      .filter(t => clienteIds.includes(t.clienteId))
+  },
   async getPendentes(clienteIds: string[]): Promise<Tarefa[]> {
     const snap = await getDocs(collection(db, 'tarefas'))
-    return snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Tarefa))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tarefa))
       .filter(t => clienteIds.includes(t.clienteId) && t.status !== 'CONCLUIDA')
   },
   async update(id: string, data: Partial<Tarefa>): Promise<void> {
