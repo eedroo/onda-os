@@ -49,27 +49,13 @@ export default function ProjetoPage() {
   }
 
   async function setStatus(tarefaId: string, novoStatus: TarefaStatus) {
-    // 1. Actualiza UI imediatamente
-    const updated = tarefas.map(t =>
-      t.id === tarefaId
-        ? { ...t, status: novoStatus, concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined }
-        : t
-    )
+    // 1. Actualiza UI
+    const updated = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t)
     setTarefas(updated)
     setOpenDropdown(null)
-
-    // 2. Guarda no Firebase
-    try {
-      await tarefasService.update(tarefaId, {
-        status: novoStatus,
-        concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined,
-      })
-      await recalcularProgresso(updated)
-    } catch (e) {
-      console.error('Erro ao guardar status:', e)
-      // Reverte em caso de erro
-      load()
-    }
+    // 2. Guarda no Firebase com método dedicado
+    await tarefasService.updateStatus(tarefaId, novoStatus)
+    await recalcularProgresso(updated)
   }
 
   async function toggleTarefa(tarefaId: string, statusAtual: TarefaStatus) {
@@ -97,11 +83,9 @@ export default function ProjetoPage() {
   const concluidas = tarefas.filter(t => t.status === 'CONCLUIDA').length
 
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}
-      onClick={() => openDropdown && setOpenDropdown(null)}
-    >
-      {/* Topbar */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}
+      onClick={() => openDropdown && setOpenDropdown(null)}>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}>
@@ -145,7 +129,6 @@ export default function ProjetoPage() {
                   return (
                     <div key={tarefa.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 4px', borderBottom: '1px solid var(--border-subtle)' }} className="last:border-0">
 
-                      {/* Checkbox */}
                       <button
                         onClick={e => { e.stopPropagation(); toggleTarefa(tarefa.id!, tarefa.status) }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}
@@ -156,7 +139,6 @@ export default function ProjetoPage() {
                         }
                       </button>
 
-                      {/* Título — clica para abrir página */}
                       <Link href={`/tarefas/${tarefa.id}`}
                         onClick={e => e.stopPropagation()}
                         style={{ flex: 1, fontSize: 13, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none' }}
@@ -164,7 +146,6 @@ export default function ProjetoPage() {
                         {tarefa.titulo}
                       </Link>
 
-                      {/* Data limite */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }} onClick={e => e.stopPropagation()}>
                         <Clock size={11} style={{ color: 'var(--text-faint)' }} />
                         <input
@@ -175,7 +156,6 @@ export default function ProjetoPage() {
                         />
                       </div>
 
-                      {/* Status dropdown */}
                       <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setOpenDropdown(openDropdown === tarefa.id ? null : tarefa.id!)}
@@ -188,7 +168,7 @@ export default function ProjetoPage() {
                             {STATUS_OPTIONS.map(opt => (
                               <button
                                 key={opt.value}
-                                onClick={e => { e.stopPropagation(); setStatus(tarefa.id!, opt.value) }}
+                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setStatus(tarefa.id!, opt.value) }}
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, textAlign: 'left', border: 'none', cursor: 'pointer', backgroundColor: tarefa.status === opt.value ? opt.bg : 'transparent', color: opt.color, fontWeight: tarefa.status === opt.value ? 600 : 400 }}
                               >
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: opt.color, flexShrink: 0 }} />
@@ -204,12 +184,6 @@ export default function ProjetoPage() {
               </div>
             )
           })}
-
-          {tarefas.length === 0 && (
-            <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              Sem tarefas neste projeto
-            </div>
-          )}
         </div>
       </div>
     </div>
