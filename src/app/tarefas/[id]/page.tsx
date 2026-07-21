@@ -23,49 +23,71 @@ export default function TarefaPage() {
   const [descricao, setDescricao] = useState('')
   const [dataLimite, setDataLimite] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const t = await tarefasService.getById(id)
-        if (t) {
-          setTarefa(t)
-          setDescricao(t.descricao || '')
-          setDataLimite(t.dataLimite || '')
-          const [c, allP] = await Promise.all([
-            t.clienteId ? clientesService.getById(t.clienteId) : Promise.resolve(null),
-            projetosService.getAll(),
-          ])
-          setCliente(c)
-          setProjeto(allP.find(p => p.id === t.projetoId) || null)
-        }
-      } catch (e) { console.error(e) }
-      finally { setLoading(false) }
+  useEffect(() => { load() }, [id])
+
+  async function load() {
+    try {
+      const t = await tarefasService.getById(id)
+      if (t) {
+        setTarefa(t)
+        setDescricao(t.descricao || '')
+        setDataLimite(t.dataLimite || '')
+        const [c, allProjetos] = await Promise.all([
+          t.clienteId ? clientesService.getById(t.clienteId) : Promise.resolve(null),
+          projetosService.getAll(),
+        ])
+        setCliente(c)
+        setProjeto(allProjetos.find(p => p.id === t.projetoId) || null)
+      }
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  async function changeStatus(novoStatus: TarefaStatus) {
+    if (!tarefa) return
+    // Actualiza UI imediatamente
+    setTarefa(t => t ? { ...t, status: novoStatus } : null)
+    // Guarda no Firebase
+    try {
+      await tarefasService.update(id, {
+        status: novoStatus,
+        concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined,
+      })
+    } catch (e) {
+      console.error('Erro ao guardar:', e)
+      load() // reverte
     }
-    load()
-  }, [id])
+  }
 
   async function toggleStatus() {
     if (!tarefa) return
     const novoStatus: TarefaStatus = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA'
-    await tarefasService.update(id, { status: novoStatus, concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined })
-    setTarefa(t => t ? { ...t, status: novoStatus } : null)
-  }
-
-  async function changeStatus(status: TarefaStatus) {
-    await tarefasService.update(id, { status, concluidaEm: status === 'CONCLUIDA' ? new Date().toISOString() : undefined })
-    setTarefa(t => t ? { ...t, status } : null)
+    await changeStatus(novoStatus)
   }
 
   async function save() {
     if (!tarefa) return
     setSaving(true)
-    await tarefasService.update(id, { descricao, dataLimite: dataLimite || undefined })
-    setTarefa(t => t ? { ...t, descricao, dataLimite } : null)
-    setSaving(false)
+    try {
+      await tarefasService.update(id, {
+        descricao: descricao || undefined,
+        dataLimite: dataLimite || undefined,
+      })
+      setTarefa(t => t ? { ...t, descricao, dataLimite } : null)
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
 
-  if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
-  if (!tarefa) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Tarefa não encontrada</div>
+  if (loading) return (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
+    </div>
+  )
+  if (!tarefa) return (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+      Tarefa não encontrada
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
@@ -73,11 +95,17 @@ export default function TarefaPage() {
         <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
         <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Tarefa</div>
       </div>
+
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Título + toggle */}
           <div className="card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
-              <button onClick={toggleStatus} style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, marginTop: 2, padding: 0 }}>
+              <button
+                onClick={toggleStatus}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 2 }}
+              >
                 {tarefa.status === 'CONCLUIDA'
                   ? <CheckSquare size={22} style={{ color: 'var(--brand)' }} />
                   : <Square size={22} style={{ color: 'var(--text-faint)' }} />
@@ -87,35 +115,75 @@ export default function TarefaPage() {
                 {tarefa.titulo}
               </div>
             </div>
+
+            {/* Status — botões directos sem dropdown */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Status</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {STATUS_OPTIONS.map(opt => (
-                  <button key={opt.value} onClick={() => changeStatus(opt.value)}
-                    style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: tarefa.status === opt.value ? `2px solid ${opt.color}` : '1px solid var(--border-subtle)', backgroundColor: tarefa.status === opt.value ? opt.bg : 'var(--bg-input)', color: opt.color, fontWeight: tarefa.status === opt.value ? 600 : 400, transition: 'all 0.15s' }}>
+                  <button
+                    key={opt.value}
+                    onClick={() => changeStatus(opt.value)}
+                    style={{
+                      padding: '7px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                      border: tarefa.status === opt.value ? `2px solid ${opt.color}` : '1px solid var(--border-subtle)',
+                      backgroundColor: tarefa.status === opt.value ? opt.bg : 'var(--bg-input)',
+                      color: opt.color,
+                      fontWeight: tarefa.status === opt.value ? 600 : 400,
+                      transition: 'all 0.15s',
+                    }}
+                  >
                     {opt.label}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Data limite */}
             <div>
               <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Data limite</div>
-              <input type="date" value={dataLimite} onChange={e => setDataLimite(e.target.value)} className="input" style={{ maxWidth: 200 }} />
+              <input
+                type="date"
+                value={dataLimite}
+                onChange={e => setDataLimite(e.target.value)}
+                className="input"
+                style={{ maxWidth: 200 }}
+              />
             </div>
           </div>
+
+          {/* Notas */}
           <div className="card" style={{ padding: 16 }}>
             <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Notas</div>
-            <textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Adiciona notas sobre esta tarefa..."
-              style={{ width: '100%', minHeight: 100, backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '8px 10px', fontSize: 13, color: 'var(--text-secondary)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+            <textarea
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              placeholder="Adiciona notas sobre esta tarefa..."
+              style={{ width: '100%', minHeight: 100, backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '8px 10px', fontSize: 13, color: 'var(--text-secondary)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+            />
             <button onClick={save} disabled={saving} className="btn btn-primary" style={{ marginTop: 10 }}>
-              {saving ? <Loader2 size={12} className="animate-spin" /> : null} Guardar
+              {saving ? <Loader2 size={12} className="animate-spin" /> : null}
+              Guardar
             </button>
           </div>
+
+          {/* Contexto */}
           <div className="card" style={{ padding: 16 }}>
             <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Contexto</div>
-            {cliente && <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}><Briefcase size={13} style={{ color: 'var(--text-faint)' }} /><span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{cliente.empresa}</span></div>}
-            {projeto && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Tag size={13} style={{ color: 'var(--text-faint)' }} /><span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{projeto.nome}</span></div>}
+            {cliente && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Briefcase size={13} style={{ color: 'var(--text-faint)' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{cliente.empresa}</span>
+              </div>
+            )}
+            {projeto && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tag size={13} style={{ color: 'var(--text-faint)' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{projeto.nome}</span>
+              </div>
+            )}
           </div>
+
         </div>
       </div>
     </div>
