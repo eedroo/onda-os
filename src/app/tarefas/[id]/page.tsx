@@ -49,6 +49,13 @@ export default function TarefaPage() {
     setTarefa(t => t ? { ...t, status: novoStatus } : null)
     // 2. Guarda com método dedicado que escreve apenas o campo status
     await tarefasService.updateStatus(id, novoStatus)
+    // 3. Recalcula o progresso do projecto com base em todas as tarefas
+    const tarefasProjeto = await tarefasService.getByProjeto(tarefa.projetoId)
+    const atualizadas = tarefasProjeto.map(t => t.id === id ? { ...t, status: novoStatus } : t)
+    const concluidas = atualizadas.filter(t => t.status === 'CONCLUIDA').length
+    const progresso = atualizadas.length > 0 ? Math.round((concluidas / atualizadas.length) * 100) : 0
+    await projetosService.update(tarefa.projetoId, { progresso })
+    setProjeto(prev => prev ? { ...prev, progresso } : null)
   }
 
   async function save() {
