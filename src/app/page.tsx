@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { Users, Calendar, Briefcase, Coins, AlertTriangle, Plus, Loader2, CheckSquare, Square } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { clientesService, projetosService, tarefasService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
 
 export default function Home() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
@@ -127,14 +129,17 @@ export default function Home() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {tarefasHoje.map(t => (
-                  <div key={t.id} onClick={() => toggleTarefa(t)}
+                  <div key={t.id} onClick={() => router.push(`/tarefas/${t.id}`)}
                     style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 4px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', transition: 'opacity 0.1s' }}
                     className="last:border-0"
                   >
-                    {t.status === 'CONCLUIDA'
-                      ? <CheckSquare size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-                      : <Square size={14} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
-                    }
+                    <button onClick={e => { e.stopPropagation(); toggleTarefa(t) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                      {t.status === 'CONCLUIDA'
+                        ? <CheckSquare size={14} style={{ color: 'var(--brand)' }} />
+                        : <Square size={14} style={{ color: 'var(--text-faint)' }} />
+                      }
+                    </button>
                     <span style={{ fontSize: 12.5, flex: 1, color: t.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: t.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
                       {t.titulo}
                     </span>
