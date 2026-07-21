@@ -171,7 +171,6 @@ export const tarefasService = {
     const snap = await getDoc(doc(db, 'tarefas', id))
     return snap.exists() ? { id: snap.id, ...snap.data() } as Tarefa : null
   },
-  // Busca TODAS as tarefas dos clientes (incluindo concluídas)
   async getByClientes(clienteIds: string[]): Promise<Tarefa[]> {
     const snap = await getDocs(collection(db, 'tarefas'))
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tarefa))
@@ -184,6 +183,15 @@ export const tarefasService = {
   },
   async update(id: string, data: Partial<Tarefa>): Promise<void> {
     await updateDoc(doc(db, 'tarefas', id), data as Record<string, unknown>)
+  },
+  async updateStatus(id: string, status: TarefaStatus): Promise<void> {
+    const updates: Record<string, unknown> = { status }
+    if (status === 'CONCLUIDA') {
+      updates.concluidaEm = new Date().toISOString()
+    } else {
+      updates.concluidaEm = null
+    }
+    await updateDoc(doc(db, 'tarefas', id), updates)
   },
 }
 
