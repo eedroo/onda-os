@@ -45,24 +45,10 @@ export default function TarefaPage() {
 
   async function changeStatus(novoStatus: TarefaStatus) {
     if (!tarefa) return
-    // Actualiza UI imediatamente
+    // 1. Actualiza UI
     setTarefa(t => t ? { ...t, status: novoStatus } : null)
-    // Guarda no Firebase
-    try {
-      await tarefasService.update(id, {
-        status: novoStatus,
-        concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined,
-      })
-    } catch (e) {
-      console.error('Erro ao guardar:', e)
-      load() // reverte
-    }
-  }
-
-  async function toggleStatus() {
-    if (!tarefa) return
-    const novoStatus: TarefaStatus = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA'
-    await changeStatus(novoStatus)
+    // 2. Guarda com método dedicado que escreve apenas o campo status
+    await tarefasService.updateStatus(id, novoStatus)
   }
 
   async function save() {
@@ -99,11 +85,11 @@ export default function TarefaPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Título + toggle */}
           <div className="card" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+            {/* Título + toggle */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 24 }}>
               <button
-                onClick={toggleStatus}
+                onClick={() => changeStatus(tarefa.status === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 2 }}
               >
                 {tarefa.status === 'CONCLUIDA'
@@ -116,26 +102,29 @@ export default function TarefaPage() {
               </div>
             </div>
 
-            {/* Status — botões directos sem dropdown */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Status</div>
+            {/* Status — 4 botões directos, sem dropdown */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Status</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {STATUS_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     onClick={() => changeStatus(opt.value)}
                     style={{
-                      padding: '7px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                      padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
                       border: tarefa.status === opt.value ? `2px solid ${opt.color}` : '1px solid var(--border-subtle)',
                       backgroundColor: tarefa.status === opt.value ? opt.bg : 'var(--bg-input)',
                       color: opt.color,
-                      fontWeight: tarefa.status === opt.value ? 600 : 400,
+                      fontWeight: tarefa.status === opt.value ? 700 : 400,
                       transition: 'all 0.15s',
                     }}
                   >
                     {opt.label}
                   </button>
                 ))}
+              </div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-faint)' }}>
+                Status actual: <strong style={{ color: STATUS_OPTIONS.find(s => s.value === tarefa.status)?.color }}>{STATUS_OPTIONS.find(s => s.value === tarefa.status)?.label}</strong>
               </div>
             </div>
 
