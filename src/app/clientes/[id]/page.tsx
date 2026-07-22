@@ -61,7 +61,7 @@ export default function ClientePage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href={`/clientes/${id}/editar`} className="btn btn-ghost"><Edit size={13} /> Editar</Link>
-          <Link href={`/projetos?cliente=${id}`} className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
+          <Link href={`/projetos/novo?cliente=${id}`} className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
         </div>
       </div>
 
@@ -159,7 +159,7 @@ export default function ClientePage() {
             ) : (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 10 }}>Sem projetos ainda</div>
-                <Link href="/projetos" className="btn btn-primary" style={{ fontSize: 11 }}>
+                <Link href={`/projetos/novo?cliente=${id}`} className="btn btn-primary" style={{ fontSize: 11 }}>
                   <Plus size={12} /> Criar projeto do mês
                 </Link>
               </div>
