@@ -40,7 +40,7 @@ export default function TarefasPage() {
   async function toggleTarefa(tarefaId: string, statusAtual: string) {
     const novoStatus = statusAtual === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
     setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t))
-    await tarefasService.update(tarefaId, { status: novoStatus, concluidaEm: novoStatus === 'CONCLUIDA' ? new Date().toISOString() : undefined })
+    await tarefasService.updateStatus(tarefaId, novoStatus)
     const tarefa = tarefas.find(t => t.id === tarefaId)
     if (tarefa) {
       const pt = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t).filter(t => t.projetoId === tarefa.projetoId)
