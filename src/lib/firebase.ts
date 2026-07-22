@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore, getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
@@ -12,8 +12,11 @@ const firebaseConfig = {
 }
 
 // Evita inicializar múltiplas vezes em desenvolvimento
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+const jaExistia = getApps().length > 0
+const app = jaExistia ? getApps()[0] : initializeApp(firebaseConfig)
 
-export const db   = getFirestore(app)
+// ignoreUndefinedProperties evita que updateDoc/setDoc falhem quando um campo
+// opcional é limpo para undefined (ex: dataLimite, descricao)
+export const db   = jaExistia ? getFirestore(app) : initializeFirestore(app, { ignoreUndefinedProperties: true })
 export const auth = getAuth(app)
 export default app
