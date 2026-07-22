@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, CheckSquare, Square, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckSquare, Square, Clock, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { projetosService, tarefasService, type Projeto, type Tarefa, type TarefaStatus } from '@/lib/db'
+import {
+  projetosService, tarefasService, categoriasService,
+  type Projeto, type Tarefa, type TarefaStatus, type Categoria, type Frequencia,
+} from '@/lib/db'
 
 const CATEGORIA_EMOJI: Record<string, string> = {
   'Google Business': '📍', 'SEO': '🔍', 'Site': '🌐',
@@ -18,24 +21,33 @@ const STATUS_OPTIONS: { value: TarefaStatus; label: string; color: string; bg: s
   { value: 'BLOQUEADA', label: 'Bloqueada', color: 'var(--accent-red)',   bg: 'var(--pill-red-bg)' },
 ]
 
+const FREQUENCIAS: Frequencia[] = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
+const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }
+
 export default function ProjetoPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [projeto, setProjeto] = useState<Projeto | null>(null)
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
+  const [categoriasConfig, setCategoriasConfig] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [novaTarefa, setNovaTarefa] = useState({ titulo: '', categoria: '', frequencia: 'MENSAL' as Frequencia, dataLimite: '' })
 
   useEffect(() => { load() }, [id])
 
   async function load() {
     try {
-      const [allProjetos, t] = await Promise.all([
+      const [allProjetos, t, cats] = await Promise.all([
         projetosService.getAll(),
         tarefasService.getByProjeto(id),
+        categoriasService.getAll(),
       ])
       setProjeto(allProjetos.find(x => x.id === id) || null)
       setTarefas(t)
+      setCategoriasConfig(cats)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -68,6 +80,34 @@ export default function ProjetoPage() {
     await tarefasService.update(tarefaId, { dataLimite: data || undefined })
   }
 
+  async function adicionarTarefa() {
+    if (!novaTarefa.titulo.trim() || !projeto) return
+    setSalvando(true)
+    try {
+      const ordem = tarefas.length ? Math.max(...tarefas.map(t => t.ordem)) + 1 : 1
+      const dados = {
+        projetoId: id, clienteId: projeto.clienteId, titulo: novaTarefa.titulo,
+        categoria: novaTarefa.categoria || 'Outros', status: 'PENDENTE' as TarefaStatus, ordem,
+        frequencia: novaTarefa.frequencia, dataLimite: novaTarefa.dataLimite || undefined,
+      }
+      const novoId = await tarefasService.create(dados)
+      const atualizadas = [...tarefas, { id: novoId, ...dados }]
+      setTarefas(atualizadas)
+      await recalcularProgresso(atualizadas)
+      setNovaTarefa({ titulo: '', categoria: '', frequencia: 'MENSAL', dataLimite: '' })
+      setShowForm(false)
+    } catch (e) { console.error(e) }
+    finally { setSalvando(false) }
+  }
+
+  async function removerTarefa(tarefaId: string) {
+    if (!confirm('Eliminar esta tarefa?')) return
+    const atualizadas = tarefas.filter(t => t.id !== tarefaId)
+    setTarefas(atualizadas)
+    await tarefasService.delete(tarefaId)
+    await recalcularProgresso(atualizadas)
+  }
+
   if (loading) return (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
       <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
@@ -96,18 +136,59 @@ export default function ProjetoPage() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{concluidas} de {tarefas.length} tarefas concluídas</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontSize: 20, fontWeight: 600, color: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--accent-blue)' }}>
-            {projeto.progresso}%
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--accent-blue)' }}>
+              {projeto.progresso}%
+            </div>
+            <div style={{ width: 80, height: 5, backgroundColor: 'var(--border-subtle)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${projeto.progresso}%`, backgroundColor: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--brand)', borderRadius: 3, transition: 'width 0.3s' }} />
+            </div>
           </div>
-          <div style={{ width: 80, height: 5, backgroundColor: 'var(--border-subtle)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${projeto.progresso}%`, backgroundColor: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--brand)', borderRadius: 3, transition: 'width 0.3s' }} />
-          </div>
+          <button onClick={e => { e.stopPropagation(); setShowForm(s => !s) }} className="btn btn-primary">
+            <Plus size={13} /> Adicionar tarefa
+          </button>
         </div>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {showForm && (
+            <div className="card" style={{ padding: 16 }} onClick={e => e.stopPropagation()}>
+              <div className="sec-title">Nova tarefa</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div>
+                  <label style={labelStyle}>Título *</label>
+                  <input className="input" value={novaTarefa.titulo} onChange={e => setNovaTarefa(f => ({ ...f, titulo: e.target.value }))} placeholder="Título da tarefa" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Categoria</label>
+                  <select className="select" value={novaTarefa.categoria} onChange={e => setNovaTarefa(f => ({ ...f, categoria: e.target.value }))}>
+                    <option value="">Outros</option>
+                    {categoriasConfig.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Frequência</label>
+                  <select className="select" value={novaTarefa.frequencia} onChange={e => setNovaTarefa(f => ({ ...f, frequencia: e.target.value as Frequencia }))}>
+                    {FREQUENCIAS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data limite</label>
+                  <input className="input" type="date" value={novaTarefa.dataLimite} onChange={e => setNovaTarefa(f => ({ ...f, dataLimite: e.target.value }))} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowForm(false)} className="btn btn-ghost">Cancelar</button>
+                <button type="button" disabled={salvando || !novaTarefa.titulo.trim()} onClick={adicionarTarefa} className="btn btn-primary">
+                  {salvando ? <Loader2 size={12} className="animate-spin" /> : null} Guardar
+                </button>
+              </div>
+            </div>
+          )}
+
           {categorias.map(cat => {
             const tc = tarefas.filter(t => t.categoria === cat)
             const concluidasCat = tc.filter(t => t.status === 'CONCLUIDA').length
@@ -178,6 +259,13 @@ export default function ProjetoPage() {
                           </div>
                         )}
                       </div>
+
+                      <button
+                        onClick={e => { e.stopPropagation(); removerTarefa(tarefa.id!) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2, flexShrink: 0 }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   )
                 })}

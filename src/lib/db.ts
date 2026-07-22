@@ -223,7 +223,10 @@ export const projetosService = {
     const snap = await getDocs(collection(db, 'projetos'))
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Projeto)).filter(p => p.clienteId === clienteId)
   },
-  async criarMensal(cliente: Cliente, mes: number, ano: number): Promise<string> {
+  async criarMensal(
+    cliente: Cliente, mes: number, ano: number,
+    tarefasOverride?: { titulo: string; categoria: string; frequencia?: Frequencia }[]
+  ): Promise<string> {
     const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-PT', { month: 'long' })
     const projetoRef = await addDoc(collection(db, 'projetos'), {
       clienteId: cliente.id, clienteNome: cliente.empresa, clientePlano: cliente.plano,
@@ -231,7 +234,9 @@ export const projetosService = {
       mes, ano, status: 'EXECUCAO', progresso: 0, createdAt: serverTimestamp(),
     })
     const batch = writeBatch(db)
-    const tarefasBase = cliente.tarefasPersonalizadas && cliente.tarefasPersonalizadas.length > 0
+    const tarefasBase = tarefasOverride
+      ? tarefasOverride.map((t, i) => ({ titulo: t.titulo, categoria: t.categoria, status: 'PENDENTE' as TarefaStatus, ordem: i + 1, frequencia: t.frequencia }))
+      : cliente.tarefasPersonalizadas && cliente.tarefasPersonalizadas.length > 0
       ? cliente.tarefasPersonalizadas.map(t => ({
           titulo: t.titulo, categoria: t.categoriaNome, status: 'PENDENTE' as TarefaStatus,
           ordem: t.ordem, frequencia: t.frequencia,
@@ -250,6 +255,10 @@ export const projetosService = {
 
 // ─── Tarefas ──────────────────────────────────────────────────────────────────
 export const tarefasService = {
+  async create(data: Omit<Tarefa, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'tarefas'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
   async getByProjeto(projetoId: string): Promise<Tarefa[]> {
     const snap = await getDocs(collection(db, 'tarefas'))
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tarefa))
@@ -281,6 +290,9 @@ export const tarefasService = {
       updates.concluidaEm = null
     }
     await updateDoc(doc(db, 'tarefas', id), updates)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'tarefas', id))
   },
 }
 
