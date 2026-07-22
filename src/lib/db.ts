@@ -16,11 +16,29 @@ export interface ServicoCliente {
   frequencia: Frequencia; quantidade: number; unidade: string; notas?: string
 }
 
+// Tarefa do perfil de tarefas do cliente — gerada a partir dos serviços
+// escolhidos na criação, mas depois independente do template do serviço:
+// editar/remover aqui não afecta o serviço nem outros clientes.
+export interface TarefaPerfilCliente {
+  id: string
+  titulo: string
+  servicoId: string
+  servicoNome: string
+  categoriaId: string
+  categoriaNome: string
+  frequencia: Frequencia
+  ordem: number
+  notas?: string
+}
+
 export interface Cliente {
   id?: string; empresa: string; contacto?: string; email?: string; telefone?: string
   plano: Plano; mrr: number; status: ClienteStatus; clienteDesde?: string; renovacao?: string
   driveUrl?: string; canvaUrl?: string; dominioUrl?: string; whatsappUrl?: string
   instagram?: string; faseSite?: string; servicos: ServicoCliente[]; notas?: string; createdAt?: Timestamp
+  // Perfil de tarefas personalizado deste cliente. Quando presente, é usado
+  // para gerar os projectos mensais em vez do template genérico do plano.
+  tarefasPersonalizadas?: TarefaPerfilCliente[]
 }
 
 export interface Projeto {
@@ -121,6 +139,13 @@ export function getTarefasPorPlano(plano: Plano) {
   return TAREFAS_GROWTH
 }
 
+// Mapeia o nome de um PlanoConfig (configurável) para o tipo Plano fixo
+// usado em Cliente.plano. Planos seed usam exactamente estes nomes; um
+// nome de plano configurável fora deste conjunto cai em 'GROWTH'.
+export function asPlano(nome: string): Plano {
+  return nome === 'ONE' || nome === 'PRESENCE' || nome === 'GROWTH' ? nome : 'GROWTH'
+}
+
 export const SERVICOS_BASE: Record<Plano, ServicoCliente[]> = {
   ONE: [
     { id: 'google-posts',   nome: 'Publicações Google Business', ativo: true, frequencia: 'SEMANAL', quantidade: 4, unidade: 'posts' },
@@ -147,6 +172,26 @@ export const SERVICOS_BASE: Record<Plano, ServicoCliente[]> = {
     { id: 'metricas',        nome: 'Análise de métricas',         ativo: true, frequencia: 'MENSAL',  quantidade: 1, unidade: 'análise' },
     { id: 'relatorio-av',    nome: 'Relatório avançado',          ativo: true, frequencia: 'MENSAL',  quantidade: 1, unidade: 'relatório' },
   ],
+}
+
+// Achata as tarefasTemplate dos serviços escolhidos num perfil de tarefas
+// editável do cliente. Renumera a ordem sequencialmente pela ordem dos
+// serviços e, dentro de cada serviço, pela ordem original da tarefa.
+export function tarefasDeServicos(servicosEscolhidos: Servico[]): TarefaPerfilCliente[] {
+  const tarefas: TarefaPerfilCliente[] = []
+  let ordem = 1
+  for (const s of servicosEscolhidos) {
+    const ordenadas = [...s.tarefasTemplate].sort((a, b) => a.ordem - b.ordem)
+    for (const t of ordenadas) {
+      tarefas.push({
+        id: `perfil-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        titulo: t.titulo, servicoId: s.id!, servicoNome: s.nome,
+        categoriaId: t.categoriaId, categoriaNome: t.categoriaNome,
+        frequencia: t.frequencia, ordem: ordem++, notas: t.notas,
+      })
+    }
+  }
+  return tarefas
 }
 
 // ─── Clientes ─────────────────────────────────────────────────────────────────
@@ -186,7 +231,13 @@ export const projetosService = {
       mes, ano, status: 'EXECUCAO', progresso: 0, createdAt: serverTimestamp(),
     })
     const batch = writeBatch(db)
-    getTarefasPorPlano(cliente.plano).forEach(t => {
+    const tarefasBase = cliente.tarefasPersonalizadas && cliente.tarefasPersonalizadas.length > 0
+      ? cliente.tarefasPersonalizadas.map(t => ({
+          titulo: t.titulo, categoria: t.categoriaNome, status: 'PENDENTE' as TarefaStatus,
+          ordem: t.ordem, frequencia: t.frequencia,
+        }))
+      : getTarefasPorPlano(cliente.plano)
+    tarefasBase.forEach(t => {
       batch.set(doc(collection(db, 'tarefas')), { ...t, projetoId: projetoRef.id, clienteId: cliente.id, createdAt: serverTimestamp() })
     })
     await batch.commit()
