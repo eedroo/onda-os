@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Kanban, Plus, Calendar, Loader2 } from 'lucide-react'
+import { Kanban, Plus, Calendar, Loader2, Info } from 'lucide-react'
 import Link from 'next/link'
 import { projetosService, clientesService, type Projeto, type Cliente } from '@/lib/db'
 
@@ -20,6 +20,7 @@ export default function ProjetosPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [criando, setCriando] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   useEffect(() => {
     load()
@@ -39,17 +40,31 @@ export default function ProjetosPage() {
 
   async function criarMensais() {
     setCriando(true)
+    setFeedback(null)
     try {
       const mes = new Date().getMonth() + 1
       const ano = new Date().getFullYear()
       const ativos = clientes.filter(c => c.status === 'ATIVO')
+      const inactivos = clientes.length - ativos.length
+      let criados = 0
+      let jaExistiam = 0
       for (const c of ativos) {
-        const jaExiste = projetos.find(p => p.clienteId === c.id && p.mes === mes && p.ano === ano)
-        if (!jaExiste) await projetosService.criarMensal(c, mes, ano)
+        const existe = projetos.find(p => p.clienteId === c.id && p.mes === mes && p.ano === ano)
+        if (existe) { jaExistiam++; continue }
+        await projetosService.criarMensal(c, mes, ano)
+        criados++
       }
       await load()
+      if (ativos.length === 0) {
+        setFeedback('Nenhum cliente está "Ativo" — muda o estado do cliente para gerar o projecto mensal.')
+      } else if (criados === 0) {
+        setFeedback(`Nenhum projecto novo criado — os ${jaExistiam} cliente(s) activo(s) já tinham projecto este mês.${inactivos > 0 ? ` (${inactivos} cliente(s) não activo(s) foram ignorados.)` : ''}`)
+      } else {
+        setFeedback(`${criados} projecto(s) criado(s)${jaExistiam > 0 ? `, ${jaExistiam} já existiam` : ''}.`)
+      }
     } catch (e) {
       console.error(e)
+      setFeedback('Ocorreu um erro ao criar os projectos. Tenta novamente.')
     } finally {
       setCriando(false)
     }
@@ -80,6 +95,12 @@ export default function ProjetosPage() {
         <span>Ativos <strong style={{ color: 'var(--accent-blue)', marginLeft: 4 }}>{projetos.filter(p => p.status !== 'CONCLUIDO').length}</strong></span>
         <span>Concluídos <strong style={{ color: 'var(--accent-green)', marginLeft: 4 }}>{projetos.filter(p => p.status === 'CONCLUIDO').length}</strong></span>
       </div>
+
+      {feedback && (
+        <div style={{ margin: '10px 20px 0', padding: '8px 12px', borderRadius: 6, backgroundColor: 'var(--pill-blue-bg)', color: 'var(--accent-blue)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <Info size={13} /> {feedback}
+        </div>
+      )}
 
       {projetos.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, textAlign: 'center' }}>
