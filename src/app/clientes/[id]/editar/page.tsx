@@ -3,13 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Plus, Trash2, Info, Save } from 'lucide-react'
-import { clientesService, SERVICOS_BASE, type Plano, type ClienteStatus, type ServicoCliente } from '@/lib/db'
-
-const PLANOS: { id: Plano; label: string; desc: string }[] = [
-  { id: 'ONE',      label: '🌊 One',      desc: 'Google Business + SEO Local' },
-  { id: 'PRESENCE', label: '🌊 Presence', desc: 'One + Landing Page' },
-  { id: 'GROWTH',   label: '🌊 Growth',   desc: 'Presence + Site completo + Blog' },
-]
+import {
+  clientesService, planosService, servicosService, asPlano, SERVICOS_BASE,
+  type Plano, type ClienteStatus, type ServicoCliente, type PlanoConfig, type Servico,
+} from '@/lib/db'
 
 const FREQUENCIAS = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
 
@@ -37,10 +34,16 @@ export default function EditarClientePage() {
     notas: '',
   })
   const [servicos, setServicos] = useState<ServicoCliente[]>([])
+  const [planosConfig, setPlanosConfig] = useState<PlanoConfig[]>([])
+  const [servicosConfig, setServicosConfig] = useState<Servico[]>([])
 
   useEffect(() => {
     async function load() {
-      const cliente = await clientesService.getById(id)
+      const [cliente, planos, servicosDisponiveis] = await Promise.all([
+        clientesService.getById(id), planosService.getAll(), servicosService.getAll(),
+      ])
+      setPlanosConfig(planos)
+      setServicosConfig(servicosDisponiveis)
       if (!cliente) { setNaoEncontrado(true); setCarregando(false); return }
       setForm({
         empresa: cliente.empresa || '', contacto: cliente.contacto || '',
@@ -57,8 +60,13 @@ export default function EditarClientePage() {
     load()
   }, [id])
 
-  function onPlanoChange(plano: Plano) {
-    setForm(f => ({ ...f, plano, faseSite: plano === 'ONE' ? 'SEM_SITE' : f.faseSite }))
+  function onPlanoChange(plano: PlanoConfig) {
+    const novoPlano = asPlano(plano.nome)
+    const servicosDoPlano: ServicoCliente[] = servicosConfig
+      .filter(s => plano.servicoIds.includes(s.id!))
+      .map(s => ({ id: s.id!, nome: s.nome, ativo: true, frequencia: 'MENSAL', quantidade: 1, unidade: 'serviço' }))
+    setForm(f => ({ ...f, plano: novoPlano, faseSite: novoPlano === 'ONE' ? 'SEM_SITE' : f.faseSite }))
+    setServicos(servicosDoPlano.length ? servicosDoPlano : SERVICOS_BASE[novoPlano])
   }
 
   function updateServico(id: string, field: keyof ServicoCliente, value: unknown) {
@@ -134,23 +142,27 @@ export default function EditarClientePage() {
           {/* Plano */}
           <div className="card p-5">
             <div className="sec-title">Plano</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
-              {PLANOS.map(p => (
-                <button
-                  key={p.id} type="button"
-                  onClick={() => onPlanoChange(p.id)}
-                  style={{
-                    padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-                    border: form.plano === p.id ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
-                    backgroundColor: form.plano === p.id ? 'color-mix(in srgb, var(--brand) 10%, transparent)' : 'var(--bg-input)',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>{p.label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.desc}</div>
-                </button>
-              ))}
-            </div>
+            {planosConfig.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '8px 0 16px' }}>Sem planos configurados — cria planos em Configurações.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                {planosConfig.map(p => (
+                  <button
+                    key={p.id} type="button"
+                    onClick={() => onPlanoChange(p)}
+                    style={{
+                      padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                      border: asPlano(p.nome) === form.plano ? '2px solid var(--brand)' : '1px solid var(--border-subtle)',
+                      backgroundColor: asPlano(p.nome) === form.plano ? 'color-mix(in srgb, var(--brand) 10%, transparent)' : 'var(--bg-input)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>🌊 {p.nome}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.descricao || `${p.servicoNomes.length} serviço(s)`}</div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
