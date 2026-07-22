@@ -1,5 +1,5 @@
 import {
-  collection, doc, addDoc, updateDoc, getDoc,
+  collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
   getDocs, serverTimestamp, Timestamp, writeBatch
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -43,6 +43,44 @@ export interface Receita {
 export interface Despesa {
   id?: string; descricao: string; categoria: string; valor: number; data: string
   estado: EstadoPagamento; recorrente: boolean; notas?: string; createdAt?: Timestamp
+}
+
+// ─── Configuração: categorias, serviços, planos ────────────────────────────────
+export interface Categoria {
+  id?: string
+  nome: string
+  descricao?: string
+  createdAt?: Timestamp
+}
+
+export interface TarefaTemplate {
+  id: string
+  titulo: string
+  categoriaId: string  // referência à colecção categorias
+  categoriaNome: string  // desnormalizado para evitar joins
+  frequencia: Frequencia
+  ordem: number
+  notas?: string
+}
+
+export interface Servico {
+  id?: string
+  nome: string
+  descricao?: string
+  tarefasTemplate: TarefaTemplate[]
+  createdAt?: Timestamp
+}
+
+// Nota: chamado PlanoConfig (em vez de Plano) para não colidir com o tipo
+// `Plano = 'ONE' | 'PRESENCE' | 'GROWTH'` já usado em Cliente.plano.
+export interface PlanoConfig {
+  id?: string
+  nome: string           // ex: "ONE", "PRESENCE", "GROWTH"
+  descricao?: string
+  servicoIds: string[]   // IDs dos serviços incluídos neste plano
+  servicoNomes: string[] // desnormalizado
+  ordem: number          // ordem de exibição
+  createdAt?: Timestamp
 }
 
 export const TAREFAS_ONE = [
@@ -221,4 +259,150 @@ export const financeiroService = {
     const snap = await getDocs(collection(db, 'receitas'))
     return snap.docs.filter(d => d.data().recorrente).reduce((s, d) => s + (d.data().valor || 0), 0)
   },
+}
+
+// ─── Categorias ─────────────────────────────────────────────────────────────
+export const categoriasService = {
+  async getAll(): Promise<Categoria[]> {
+    const snap = await getDocs(collection(db, 'categorias'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Categoria))
+  },
+  async getById(id: string): Promise<Categoria | null> {
+    const snap = await getDoc(doc(db, 'categorias', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Categoria : null
+  },
+  async create(data: Omit<Categoria, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'categorias'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Categoria>): Promise<void> {
+    await updateDoc(doc(db, 'categorias', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'categorias', id))
+  },
+}
+
+// ─── Serviços ───────────────────────────────────────────────────────────────
+export const servicosService = {
+  async getAll(): Promise<Servico[]> {
+    const snap = await getDocs(collection(db, 'servicos'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Servico))
+  },
+  async getById(id: string): Promise<Servico | null> {
+    const snap = await getDoc(doc(db, 'servicos', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Servico : null
+  },
+  async create(data: Omit<Servico, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'servicos'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Servico>): Promise<void> {
+    await updateDoc(doc(db, 'servicos', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'servicos', id))
+  },
+}
+
+// ─── Planos (configuráveis) ──────────────────────────────────────────────────
+export const planosService = {
+  async getAll(): Promise<PlanoConfig[]> {
+    const snap = await getDocs(collection(db, 'planos'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlanoConfig)).sort((a, b) => a.ordem - b.ordem)
+  },
+  async getById(id: string): Promise<PlanoConfig | null> {
+    const snap = await getDoc(doc(db, 'planos', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as PlanoConfig : null
+  },
+  async create(data: Omit<PlanoConfig, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'planos'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<PlanoConfig>): Promise<void> {
+    await updateDoc(doc(db, 'planos', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'planos', id))
+  },
+}
+
+// ─── Seed de configuração inicial ────────────────────────────────────────────
+function novaTarefaTemplate(
+  titulo: string, categoriaId: string, categoriaNome: string, frequencia: Frequencia, ordem: number
+): TarefaTemplate {
+  return { id: `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, titulo, categoriaId, categoriaNome, frequencia, ordem }
+}
+
+export async function seedConfiguracoes(): Promise<void> {
+  const categoriasExistentes = await categoriasService.getAll()
+  if (categoriasExistentes.length > 0) return
+
+  const nomesCategorias = ['Publicações', 'Avaliações', 'Optimização', 'SEO', 'Conteúdo', 'Site', 'Relatório', 'Estratégia', 'Administrativo']
+  const categoriaIds: Record<string, string> = {}
+  for (const nome of nomesCategorias) {
+    categoriaIds[nome] = await categoriasService.create({ nome })
+  }
+
+  const servicosSeed: { nome: string; tarefas: [string, string, Frequencia][] }[] = [
+    { nome: 'Google Business', tarefas: [
+      ['Publicações Google', 'Publicações', 'SEMANAL'],
+      ['Responder avaliações', 'Avaliações', 'MENSAL'],
+      ['Actualização de informações', 'Optimização', 'MENSAL'],
+      ['Melhorias na ficha', 'Optimização', 'MENSAL'],
+    ]},
+    { nome: 'SEO Local', tarefas: [
+      ['Análise SEO local', 'SEO', 'MENSAL'],
+      ['Pesquisa de palavras-chave', 'SEO', 'MENSAL'],
+    ]},
+    { nome: 'Site — Manutenção', tarefas: [
+      ['Manutenção geral', 'Site', 'MENSAL'],
+      ['Backup', 'Site', 'MENSAL'],
+      ['Verificar velocidade', 'Site', 'MENSAL'],
+      ['Alterações solicitadas', 'Site', 'MENSAL'],
+      ['Verificar SSL', 'Site', 'MENSAL'],
+    ]},
+    { nome: 'SEO On-page', tarefas: [
+      ['Revisão SEO on-page', 'SEO', 'MENSAL'],
+      ['Análise de métricas', 'SEO', 'MENSAL'],
+    ]},
+    { nome: 'Blog', tarefas: [
+      ['Artigo #1', 'Conteúdo', 'MENSAL'],
+      ['Artigo #2', 'Conteúdo', 'MENSAL'],
+      ['Artigo #3', 'Conteúdo', 'MENSAL'],
+      ['Artigo #4', 'Conteúdo', 'MENSAL'],
+    ]},
+    { nome: 'Estratégia', tarefas: [
+      ['Estratégia do mês', 'Estratégia', 'MENSAL'],
+      ['Acompanhamento estratégico', 'Estratégia', 'MENSAL'],
+    ]},
+    { nome: 'Relatório', tarefas: [
+      ['Relatório mensal', 'Relatório', 'MENSAL'],
+      ['Enviar relatório ao cliente', 'Relatório', 'MENSAL'],
+      ['Relatório avançado', 'Relatório', 'MENSAL'],
+    ]},
+  ]
+
+  const servicoIds: Record<string, string> = {}
+  for (const s of servicosSeed) {
+    const tarefasTemplate = s.tarefas.map(([titulo, catNome, freq], i) =>
+      novaTarefaTemplate(titulo, categoriaIds[catNome], catNome, freq, i + 1))
+    servicoIds[s.nome] = await servicosService.create({ nome: s.nome, tarefasTemplate })
+  }
+
+  const planosSeed: { nome: string; descricao: string; servicos: string[]; ordem: number }[] = [
+    { nome: 'ONE', descricao: 'Google Business + SEO Local', servicos: ['Google Business', 'SEO Local', 'Relatório'], ordem: 1 },
+    { nome: 'PRESENCE', descricao: 'One + Landing Page', servicos: ['Google Business', 'SEO Local', 'Site — Manutenção', 'SEO On-page', 'Relatório'], ordem: 2 },
+    { nome: 'GROWTH', descricao: 'Presence + Site completo + Blog', servicos: ['Google Business', 'SEO Local', 'Site — Manutenção', 'SEO On-page', 'Blog', 'Estratégia', 'Relatório'], ordem: 3 },
+  ]
+
+  for (const p of planosSeed) {
+    await planosService.create({
+      nome: p.nome,
+      descricao: p.descricao,
+      servicoIds: p.servicos.map(nome => servicoIds[nome]),
+      servicoNomes: p.servicos,
+      ordem: p.ordem,
+    })
+  }
 }
