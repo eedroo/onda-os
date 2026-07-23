@@ -31,6 +31,12 @@ export interface TarefaPerfilCliente {
   notas?: string
 }
 
+export interface LinkFavorito {
+  id: string
+  label: string
+  url: string
+}
+
 export interface Cliente {
   id?: string; empresa: string; contacto?: string; email?: string; telefone?: string
   plano: Plano; mrr: number; status: ClienteStatus; clienteDesde?: string; renovacao?: string
@@ -39,6 +45,9 @@ export interface Cliente {
   // Perfil de tarefas personalizado deste cliente. Quando presente, é usado
   // para gerar os projectos mensais em vez do template genérico do plano.
   tarefasPersonalizadas?: TarefaPerfilCliente[]
+  // Links extra que o utilizador guarda para este cliente (além de Drive/Canva/site/WhatsApp),
+  // e que também aparecem nos atalhos do cabeçalho dos projectos deste cliente.
+  linksFavoritos?: LinkFavorito[]
 }
 
 export interface Projeto {
