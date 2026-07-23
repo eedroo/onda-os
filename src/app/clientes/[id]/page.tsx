@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, ExternalLink, Kanban, Plus, Edit } from 'lucide-react'
+import { ArrowLeft, Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star } from 'lucide-react'
 import Link from 'next/link'
-import { clientesService, projetosService, type Cliente, type Projeto } from '@/lib/db'
+import { clientesService, projetosService, type Cliente, type Projeto, type LinkFavorito } from '@/lib/db'
+
+function gerarIdLink() {
+  return `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
 
 const PLANO_COLOR: Record<string, string> = { ONE: 'pill-green', PRESENCE: 'pill-purple', GROWTH: 'pill-blue' }
 const STATUS_COLOR: Record<string, string> = {
@@ -18,6 +22,8 @@ export default function ClientePage() {
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [projetos, setProjetos] = useState<Projeto[]>([])
   const [loading, setLoading] = useState(true)
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const [novoLink, setNovoLink] = useState({ label: '', url: '' })
 
   useEffect(() => {
     async function load() {
@@ -31,6 +37,23 @@ export default function ClientePage() {
     }
     load()
   }, [id])
+
+  async function adicionarLink() {
+    if (!novoLink.label.trim() || !novoLink.url.trim() || !cliente) return
+    const url = /^https?:\/\//i.test(novoLink.url) ? novoLink.url : `https://${novoLink.url}`
+    const linksFavoritos = [...(cliente.linksFavoritos || []), { id: gerarIdLink(), label: novoLink.label, url }]
+    await clientesService.update(id, { linksFavoritos })
+    setCliente(c => c ? { ...c, linksFavoritos } : c)
+    setNovoLink({ label: '', url: '' })
+    setShowLinkForm(false)
+  }
+
+  async function removerLink(linkId: string) {
+    if (!cliente) return
+    const linksFavoritos = (cliente.linksFavoritos || []).filter(l => l.id !== linkId)
+    await clientesService.update(id, { linksFavoritos })
+    setCliente(c => c ? { ...c, linksFavoritos } : c)
+  }
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
   if (!cliente) return <div className="flex h-full items-center justify-center" style={{ color: 'var(--text-muted)' }}>Cliente não encontrado</div>
@@ -108,8 +131,23 @@ export default function ClientePage() {
 
             {/* Links */}
             <div className="card" style={{ padding: 16 }}>
-              <div className="sec-title">Links rápidos</div>
-              {links.length ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div className="sec-title" style={{ marginBottom: 0 }}>Links rápidos</div>
+                <button onClick={() => setShowLinkForm(s => !s)} className="btn btn-ghost" style={{ fontSize: 10, padding: '3px 7px' }}>
+                  <Plus size={10} /> Link
+                </button>
+              </div>
+              {showLinkForm && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10, padding: 8, backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
+                  <input className="input" value={novoLink.label} onChange={e => setNovoLink(f => ({ ...f, label: e.target.value }))} placeholder="Nome (ex: Painel de anúncios)" style={{ fontSize: 12 }} />
+                  <input className="input" value={novoLink.url} onChange={e => setNovoLink(f => ({ ...f, url: e.target.value }))} placeholder="https://..." style={{ fontSize: 12 }} />
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setShowLinkForm(false)} className="btn btn-ghost" style={{ fontSize: 11 }}>Cancelar</button>
+                    <button onClick={adicionarLink} disabled={!novoLink.label.trim() || !novoLink.url.trim()} className="btn btn-primary" style={{ fontSize: 11 }}>Guardar</button>
+                  </div>
+                </div>
+              )}
+              {links.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {links.map(l => (
                     <a key={l.key} href={(cliente as unknown as Record<string, unknown>)[l.key] as string} target="_blank" rel="noreferrer"
@@ -120,7 +158,8 @@ export default function ClientePage() {
                     </a>
                   ))}
                 </div>
-              ) : (
+              )}
+              {links.length === 0 && !cliente.instagram && !(cliente.linksFavoritos || []).length && (
                 <div style={{ fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', padding: '12px 0' }}>Sem links adicionados</div>
               )}
               {cliente.instagram && (
@@ -131,6 +170,15 @@ export default function ClientePage() {
                   <ExternalLink size={11} style={{ color: 'var(--text-faint)' }} />
                 </a>
               )}
+              {(cliente.linksFavoritos || []).map(l => (
+                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)', marginTop: 6 }}>
+                  <Star size={12} style={{ color: 'var(--accent-amber)', flexShrink: 0 }} />
+                  <a href={l.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--text-secondary)', flex: 1, textDecoration: 'none' }}>{l.label}</a>
+                  <button onClick={() => removerLink(l.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 0, display: 'flex' }}>
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
