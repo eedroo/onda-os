@@ -26,11 +26,11 @@ const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', te
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-type Vista = 'status' | 'calendario' | 'servico'
+type Vista = 'status' | 'calendario' | 'categoria'
 const VISTAS: { id: Vista; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'status', label: 'Kanban — Status', icon: LayoutGrid },
   { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
-  { id: 'servico', label: 'Kanban — Serviço', icon: Tag },
+  { id: 'categoria', label: 'Kanban — Categoria', icon: Tag },
 ]
 
 const LINKS_FIXOS = [
@@ -137,7 +137,6 @@ export default function ProjetoPage() {
     </div>
   )
 
-  const categorias = Array.from(new Set(tarefas.map(t => t.categoria)))
   const concluidas = tarefas.filter(t => t.status === 'CONCLUIDA').length
 
   const links = cliente ? LINKS_FIXOS
@@ -227,15 +226,20 @@ export default function ProjetoPage() {
     )
   }
 
-  function KanbanServico() {
+  function KanbanCategoria() {
+    // Colunas fixas = categorias configuradas em Configurações (não texto livre das tarefas).
+    // Tarefas com uma categoria que não corresponde a nenhuma configurada (ex: geradas pelo
+    // sistema antigo) caem no balde "Sem categoria" em vez de criarem colunas à parte.
+    const nomesConfigurados = categoriasConfig.map(c => c.nome)
+    const semCategoria = tarefas.filter(t => !nomesConfigurados.includes(t.categoria))
     return (
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-        {categorias.map(cat => {
-          const items = tarefas.filter(t => t.categoria === cat)
+        {categoriasConfig.map(cat => {
+          const items = tarefas.filter(t => t.categoria === cat.nome)
           return (
-            <div key={cat} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div key={cat.id} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{CATEGORIA_EMOJI[cat] || '📌'} {cat}</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{CATEGORIA_EMOJI[cat.nome] || '📌'} {cat.nome}</span>
                 <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
               </div>
               {items.map(t => renderCartao(t, true))}
@@ -245,8 +249,17 @@ export default function ProjetoPage() {
             </div>
           )
         })}
-        {categorias.length === 0 && (
-          <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)', width: '100%' }}>Sem tarefas ainda</div>
+        {semCategoria.length > 0 && (
+          <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-faint)' }}>📌 Sem categoria</span>
+              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{semCategoria.length}</span>
+            </div>
+            {semCategoria.map(t => renderCartao(t, true))}
+          </div>
+        )}
+        {categoriasConfig.length === 0 && semCategoria.length === 0 && (
+          <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)', width: '100%' }}>Sem categorias configuradas</div>
         )}
       </div>
     )
@@ -416,7 +429,7 @@ export default function ProjetoPage() {
           )}
 
           {vista === 'status' && <KanbanStatus />}
-          {vista === 'servico' && <KanbanServico />}
+          {vista === 'categoria' && <KanbanCategoria />}
           {vista === 'calendario' && <CalendarioView />}
 
         </div>
