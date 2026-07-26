@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
-  getDocs, serverTimestamp, Timestamp, writeBatch
+  getDocs, serverTimestamp, Timestamp, writeBatch, arrayUnion
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -56,10 +56,20 @@ export interface Projeto {
   notas?: string; createdAt?: Timestamp
 }
 
+export type Prioridade = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE'
+
+export interface Anexo { id: string; label: string; url: string }
+export interface Subtarefa { id: string; titulo: string; concluida: boolean }
+export interface HistoricoStatus { status: TarefaStatus; data: string }
+
 export interface Tarefa {
   id?: string; projetoId: string; clienteId: string; titulo: string; descricao?: string
   status: TarefaStatus; ordem: number; categoria: string; frequencia?: Frequencia
-  dataLimite?: string; concluidaEm?: string; createdAt?: Timestamp
+  servicoId?: string; servicoNome?: string
+  dataLimite?: string; dataInicio?: string; concluidaEm?: string
+  progresso?: number; prioridade?: Prioridade
+  anexos?: Anexo[]; subtarefas?: Subtarefa[]; historicoStatus?: HistoricoStatus[]
+  createdAt?: Timestamp
 }
 
 export interface Receita {
@@ -248,7 +258,7 @@ export const projetosService = {
       : cliente.tarefasPersonalizadas && cliente.tarefasPersonalizadas.length > 0
       ? cliente.tarefasPersonalizadas.map(t => ({
           titulo: t.titulo, categoria: t.categoriaNome, status: 'PENDENTE' as TarefaStatus,
-          ordem: t.ordem, frequencia: t.frequencia,
+          ordem: t.ordem, frequencia: t.frequencia, servicoId: t.servicoId, servicoNome: t.servicoNome,
         }))
       : getTarefasPorPlano(cliente.plano)
     tarefasBase.forEach(t => {
@@ -292,7 +302,10 @@ export const tarefasService = {
     await updateDoc(doc(db, 'tarefas', id), data as Record<string, unknown>)
   },
   async updateStatus(id: string, status: TarefaStatus): Promise<void> {
-    const updates: Record<string, unknown> = { status }
+    const updates: Record<string, unknown> = {
+      status,
+      historicoStatus: arrayUnion({ status, data: new Date().toISOString() }),
+    }
     if (status === 'CONCLUIDA') {
       updates.concluidaEm = new Date().toISOString()
     } else {
