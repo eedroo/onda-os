@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { ThemeProvider } from '@/components/ui/ThemeProvider'
+import { AuthProvider } from '@/lib/auth'
+import AuthGate from '@/components/auth/AuthGate'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
@@ -14,12 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt">
       <body>
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-base)' }}>
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
-              {children}
-            </main>
-          </div>
+          <AuthProvider>
+            <AuthGate>{children}</AuthGate>
+          </AuthProvider>
           <Toaster
             theme="system"
             position="bottom-right"

@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, UserCog, LogOut
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
+import { useAuth } from '@/lib/auth'
 
 const nav = [
   {
@@ -47,7 +48,21 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, toggle } = useTheme()
+  const { perfil, logout } = useAuth()
+
+  const navFinal = nav.map(section => {
+    if (section.label === 'Gestão' && perfil?.role === 'ADMIN') {
+      return { ...section, items: [...section.items, { href: '/utilizadores', icon: UserCog, label: 'Utilizadores' }] }
+    }
+    return section
+  })
+
+  async function onLogout() {
+    await logout()
+    router.push('/login')
+  }
 
   return (
     <aside style={{
@@ -70,7 +85,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, paddingTop: 12 }}>
-        {nav.map((section) => (
+        {navFinal.map((section) => (
           <div key={section.label} style={{ marginBottom: 4 }}>
             <div style={{ padding: '6px 16px', fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               {section.label}
@@ -115,11 +130,16 @@ export function Sidebar() {
 
         {/* User */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', border: '1px solid var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)' }}>R</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Ricardo</div>
-            <div style={{ fontSize: 10, color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Onda Digital</div>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', border: '1px solid var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)', flexShrink: 0 }}>
+            {(perfil?.nome || '?').slice(0, 2).toUpperCase()}
           </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{perfil?.nome || 'Utilizador'}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{perfil?.role === 'ADMIN' ? 'Admin · Onda Digital' : 'Onda Digital'}</div>
+          </div>
+          <button onClick={onLogout} title="Sair" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4, flexShrink: 0, display: 'flex' }}>
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
     </aside>
