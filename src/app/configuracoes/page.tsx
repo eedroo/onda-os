@@ -3,16 +3,19 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Settings, Plus, Trash2, Pencil, Loader2, Check } from 'lucide-react'
 import {
-  categoriasService, servicosService, planosService, seedConfiguracoes,
+  categoriasService, servicosService, planosService, seedConfiguracoes, usuariosService,
   type Categoria, type Servico, type TarefaTemplate, type PlanoConfig, type Frequencia,
+  type Usuario, type PerfilRole,
 } from '@/lib/db'
+import { useAuth } from '@/lib/auth'
 
-type Tab = 'categorias' | 'servicos' | 'planos'
+type Tab = 'categorias' | 'servicos' | 'planos' | 'utilizadores'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categorias', label: 'Categorias' },
   { id: 'servicos', label: 'Serviços' },
   { id: 'planos', label: 'Planos' },
+  { id: 'utilizadores', label: 'Utilizadores' },
 ]
 
 const FREQUENCIAS: Frequencia[] = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
@@ -24,24 +27,31 @@ function gerarId(prefixo: string) {
 const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }
 
 export default function ConfiguracoesPage() {
+  const { perfil } = useAuth()
   const [tab, setTab] = useState<Tab>('categorias')
   const [loading, setLoading] = useState(true)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
   const [planos, setPlanos] = useState<PlanoConfig[]>([])
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [feedback, setFeedback] = useState<string | null>(null)
+
+  const ehAdmin = perfil?.role === 'ADMIN'
+  const tabsVisiveis = TABS.filter(t => t.id !== 'utilizadores' || ehAdmin)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
     try {
-      let [c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
+      let [c, s, p, u] = await Promise.all([
+        categoriasService.getAll(), servicosService.getAll(), planosService.getAll(), usuariosService.getAll(),
+      ])
       if (c.length === 0) {
         await seedConfiguracoes()
         ;[c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
       }
-      setCategorias(c); setServicos(s); setPlanos(p)
+      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -66,7 +76,7 @@ export default function ConfiguracoesPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        {TABS.map(t => (
+        {tabsVisiveis.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: tab === t.id ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: tab === t.id ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: tab === t.id ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
             {t.label}
@@ -90,6 +100,9 @@ export default function ConfiguracoesPage() {
           )}
           {tab === 'planos' && (
             <PlanosTab planos={planos} servicos={servicos} onReload={load} notify={notify} />
+          )}
+          {tab === 'utilizadores' && ehAdmin && (
+            <UtilizadoresTab usuarios={usuarios} onReload={load} />
           )}
         </div>
       </div>
@@ -494,6 +507,44 @@ function PlanosTab({ planos, servicos, onReload, notify }: {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Tab: Utilizadores ──────────────────────────────────────────────────────
+
+const ROLE_LABEL: Record<PerfilRole, string> = { ADMIN: 'Admin', MEMBRO: 'Membro', PENDENTE: 'Pendente' }
+const ROLE_COLOR: Record<PerfilRole, string> = { ADMIN: 'pill-purple', MEMBRO: 'pill-blue', PENDENTE: 'pill-amber' }
+
+function UtilizadoresTab({ usuarios, onReload }: { usuarios: Usuario[]; onReload: () => Promise<void> }) {
+  const { user } = useAuth()
+
+  async function mudarRole(uid: string, role: PerfilRole) {
+    await usuariosService.update(uid, { role })
+    await onReload()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {usuarios.map(u => (
+        <div key={u.id} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+              {u.nome} {u.id === user?.uid && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>(tu)</span>}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <span className={`pill ${ROLE_COLOR[u.role]}`}>{ROLE_LABEL[u.role]}</span>
+            <select className="select" style={{ width: 130 }} value={u.role} onChange={e => mudarRole(u.id!, e.target.value as PerfilRole)}>
+              <option value="PENDENTE">Pendente</option>
+              <option value="MEMBRO">Membro</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        </div>
+      ))}
+      {usuarios.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 13 }}>Sem utilizadores</div>}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, UserCog, LogOut
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { useAuth } from '@/lib/auth'
@@ -52,13 +52,6 @@ export function Sidebar() {
   const { theme, toggle } = useTheme()
   const { perfil, logout } = useAuth()
 
-  const navFinal = nav.map(section => {
-    if (section.label === 'Gestão' && perfil?.role === 'ADMIN') {
-      return { ...section, items: [...section.items, { href: '/utilizadores', icon: UserCog, label: 'Utilizadores' }] }
-    }
-    return section
-  })
-
   async function onLogout() {
     await logout()
     router.push('/login')
@@ -85,7 +78,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, paddingTop: 12 }}>
-        {navFinal.map((section) => (
+        {nav.map((section) => (
           <div key={section.label} style={{ marginBottom: 4 }}>
             <div style={{ padding: '6px 16px', fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               {section.label}
