@@ -5,9 +5,12 @@ import { Users, Calendar, Briefcase, Coins, AlertTriangle, Plus, Loader2, CheckS
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { clientesService, projetosService, tarefasService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
+import { useAuth } from '@/lib/auth'
 
 export default function Home() {
   const router = useRouter()
+  const { perfil } = useAuth()
+  const primeiroNome = perfil?.nome?.split(' ')[0] || 'Utilizador'
   const [loading, setLoading] = useState(true)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
@@ -86,7 +89,7 @@ export default function Home() {
       {/* Topbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>Bom dia, Ricardo 👋</div>
+          <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>Bom dia, {primeiroNome} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, textTransform: 'capitalize' }}>{dateStr}</div>
         </div>
         <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', border: '1px solid var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--accent-blue)' }}>R</div>
