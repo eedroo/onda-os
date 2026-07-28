@@ -1,5 +1,5 @@
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
+  collection, doc, addDoc, updateDoc, deleteDoc, getDoc, setDoc,
   getDocs, serverTimestamp, Timestamp, writeBatch, arrayUnion
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -490,4 +490,32 @@ export async function seedConfiguracoes(): Promise<void> {
       ordem: p.ordem,
     })
   }
+}
+
+// ─── Utilizadores (contas / perfis) ──────────────────────────────────────────
+export type PerfilRole = 'ADMIN' | 'MEMBRO' | 'PENDENTE'
+
+export interface Usuario {
+  id?: string // = Firebase Auth UID
+  email: string
+  nome: string
+  role: PerfilRole
+  createdAt?: Timestamp
+}
+
+export const usuariosService = {
+  async getAll(): Promise<Usuario[]> {
+    const snap = await getDocs(collection(db, 'usuarios'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Usuario))
+  },
+  async getById(uid: string): Promise<Usuario | null> {
+    const snap = await getDoc(doc(db, 'usuarios', uid))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Usuario : null
+  },
+  async criar(uid: string, data: Omit<Usuario, 'id' | 'createdAt'>): Promise<void> {
+    await setDoc(doc(db, 'usuarios', uid), { ...data, createdAt: serverTimestamp() })
+  },
+  async update(uid: string, data: Partial<Usuario>): Promise<void> {
+    await updateDoc(doc(db, 'usuarios', uid), data as Record<string, unknown>)
+  },
 }
