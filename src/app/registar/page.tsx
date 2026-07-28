@@ -7,11 +7,13 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { Loader2 } from 'lucide-react'
 import { auth } from '@/lib/firebase'
 import { usuariosService } from '@/lib/db'
+import { useAuth } from '@/lib/auth'
 
 const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }
 
 export default function RegistarPage() {
   const router = useRouter()
+  const { refreshPerfil } = useAuth()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +34,9 @@ export default function RegistarPage() {
       await usuariosService.criar(cred.user.uid, {
         email, nome, role: existentes.length === 0 ? 'ADMIN' : 'PENDENTE',
       })
+      // O AuthProvider pode ter tentado ler o perfil antes de este documento
+      // existir — força um novo pedido antes de navegar.
+      await refreshPerfil()
       router.push('/')
     } catch (err) {
       console.error(err)
