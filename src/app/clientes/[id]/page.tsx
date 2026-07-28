@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star } from 'lucide-react'
+import { ArrowLeft, Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare } from 'lucide-react'
 import Link from 'next/link'
-import { clientesService, projetosService, type Cliente, type Projeto, type LinkFavorito } from '@/lib/db'
+import {
+  clientesService, projetosService, tarefasService, categoriasService,
+  type Cliente, type Projeto, type Tarefa, type Categoria, type TarefaStatus,
+} from '@/lib/db'
+import TarefasBoard from '@/components/tarefas/TarefasBoard'
 
 function gerarIdLink() {
   return `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -21,22 +25,54 @@ export default function ClientePage() {
   const router = useRouter()
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [projetos, setProjetos] = useState<Projeto[]>([])
+  const [tarefas, setTarefas] = useState<Tarefa[]>([])
+  const [categoriasConfig, setCategoriasConfig] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [showLinkForm, setShowLinkForm] = useState(false)
   const [novoLink, setNovoLink] = useState({ label: '', url: '' })
 
   useEffect(() => {
     async function load() {
-      const [c, p] = await Promise.all([
+      const [c, p, t, cats] = await Promise.all([
         clientesService.getById(id),
         projetosService.getByCliente(id),
+        tarefasService.getByClientes([id]),
+        categoriasService.getAll(),
       ])
       setCliente(c)
       setProjetos(p)
+      setTarefas(t)
+      setCategoriasConfig(cats)
       setLoading(false)
     }
     load()
   }, [id])
+
+  async function recalcularProgressoDoProjeto(tarefasAtualizadas: Tarefa[], projetoId: string) {
+    const doProjeto = tarefasAtualizadas.filter(t => t.projetoId === projetoId)
+    if (!doProjeto.length) return
+    const conc = doProjeto.filter(t => t.status === 'CONCLUIDA').length
+    const progresso = Math.round((conc / doProjeto.length) * 100)
+    await projetosService.update(projetoId, { progresso })
+    setProjetos(prev => prev.map(p => p.id === projetoId ? { ...p, progresso } : p))
+  }
+
+  async function setStatusTarefa(tarefaId: string, novoStatus: TarefaStatus) {
+    const atualizadas = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t)
+    setTarefas(atualizadas)
+    await tarefasService.updateStatus(tarefaId, novoStatus)
+    const tarefa = tarefas.find(t => t.id === tarefaId)
+    if (tarefa) await recalcularProgressoDoProjeto(atualizadas, tarefa.projetoId)
+  }
+
+  async function toggleTarefa(tarefaId: string, statusAtual: TarefaStatus) {
+    await setStatusTarefa(tarefaId, statusAtual === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA')
+  }
+
+  async function updateDataLimiteTarefa(tarefaId: string, data: string) {
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, dataLimite: data } : t))
+    await tarefasService.update(tarefaId, { dataLimite: data || undefined })
+  }
 
   async function adicionarLink() {
     if (!novoLink.label.trim() || !novoLink.url.trim() || !cliente) return
@@ -213,6 +249,20 @@ export default function ClientePage() {
               </div>
             )}
           </div>
+
+          {/* Tarefas — agrega todos os projectos deste cliente */}
+          {tarefas.length > 0 && (
+            <div className="card" style={{ padding: 16, minWidth: 0 }}>
+              <div className="sec-title"><CheckSquare size={12} /> Tarefas</div>
+              <TarefasBoard
+                tarefas={tarefas}
+                categoriasConfig={categoriasConfig}
+                onToggle={toggleTarefa}
+                onSetStatus={setStatusTarefa}
+                onUpdateDataLimite={updateDataLimiteTarefa}
+              />
+            </div>
+          )}
 
           {/* Notas */}
           {cliente.notas && (
