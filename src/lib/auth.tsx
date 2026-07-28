@@ -10,10 +10,11 @@ interface AuthContextValue {
   perfil: Usuario | null
   loading: boolean
   logout: () => Promise<void>
+  refreshPerfil: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  user: null, perfil: null, loading: true, logout: async () => {},
+  user: null, perfil: null, loading: true, logout: async () => {}, refreshPerfil: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,8 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth)
   }
 
+  // Força um novo pedido do perfil ao Firestore. Necessário logo após o registo,
+  // porque o onAuthStateChanged já pode ter tentado ler o perfil antes de o
+  // documento em usuarios/{uid} chegar a ser criado.
+  async function refreshPerfil() {
+    if (!auth.currentUser) return
+    try {
+      setPerfil(await usuariosService.getById(auth.currentUser.uid))
+    } catch (e) { console.error(e) }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, perfil, loading, logout }}>
+    <AuthContext.Provider value={{ user, perfil, loading, logout, refreshPerfil }}>
       {children}
     </AuthContext.Provider>
   )
