@@ -24,6 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      // Sem isto, uma mudança de sessão (ex: login) deixava "loading" em false
+      // (valor da verificação inicial) enquanto o perfil ainda estava a ser
+      // pedido ao Firestore — nessa janela o AuthGate mostrava "Perfil não
+      // encontrado" por engano, em vez do spinner de carregamento.
+      setLoading(true)
       setUser(u)
       try {
         setPerfil(u ? await usuariosService.getById(u.uid) : null)
