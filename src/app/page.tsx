@@ -92,7 +92,6 @@ export default function Home() {
           <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>Bom dia, {primeiroNome} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, textTransform: 'capitalize' }}>{dateStr}</div>
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', border: '1px solid var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--accent-blue)' }}>R</div>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
