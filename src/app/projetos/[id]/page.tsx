@@ -74,6 +74,11 @@ export default function ProjetoPage() {
     await tarefasService.update(tarefaId, { dataLimite: data || undefined })
   }
 
+  async function setCategoria(tarefaId: string, categoria: string) {
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, categoria } : t))
+    await tarefasService.update(tarefaId, { categoria })
+  }
+
   async function adicionarTarefa() {
     if (!novaTarefa.titulo.trim() || !projeto) return
     setSalvando(true)
@@ -206,6 +211,7 @@ export default function ProjetoPage() {
             categoriasConfig={categoriasConfig}
             onToggle={toggleTarefa}
             onSetStatus={setStatus}
+            onSetCategoria={setCategoria}
             onUpdateDataLimite={updateDataLimite}
             onRemover={removerTarefa}
             mesInicial={projeto.mes}

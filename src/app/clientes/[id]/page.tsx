@@ -74,6 +74,11 @@ export default function ClientePage() {
     await tarefasService.update(tarefaId, { dataLimite: data || undefined })
   }
 
+  async function setCategoriaTarefa(tarefaId: string, categoria: string) {
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, categoria } : t))
+    await tarefasService.update(tarefaId, { categoria })
+  }
+
   async function adicionarLink() {
     if (!novoLink.label.trim() || !novoLink.url.trim() || !cliente) return
     const url = /^https?:\/\//i.test(novoLink.url) ? novoLink.url : `https://${novoLink.url}`
@@ -259,6 +264,7 @@ export default function ClientePage() {
                 categoriasConfig={categoriasConfig}
                 onToggle={toggleTarefa}
                 onSetStatus={setStatusTarefa}
+                onSetCategoria={setCategoriaTarefa}
                 onUpdateDataLimite={updateDataLimiteTarefa}
               />
             </div>

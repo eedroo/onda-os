@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type DragEvent } from 'react'
 import Link from 'next/link'
 import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
@@ -32,6 +32,7 @@ interface TarefasBoardProps {
   categoriasConfig: Categoria[]
   onToggle: (id: string, statusAtual: TarefaStatus) => void
   onSetStatus: (id: string, novo: TarefaStatus) => void
+  onSetCategoria?: (id: string, categoria: string) => void
   onUpdateDataLimite: (id: string, data: string) => void
   onRemover?: (id: string) => void
   clienteNomePorId?: Record<string, string>
@@ -40,19 +41,27 @@ interface TarefasBoardProps {
 }
 
 export default function TarefasBoard({
-  tarefas, categoriasConfig, onToggle, onSetStatus, onUpdateDataLimite, onRemover, clienteNomePorId,
+  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, clienteNomePorId,
   mesInicial, anoInicial,
 }: TarefasBoardProps) {
   const [vista, setVista] = useState<Vista>('status')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [arrastandoId, setArrastandoId] = useState<string | null>(null)
+  const [colunaSobre, setColunaSobre] = useState<string | null>(null)
   const hoje = new Date()
   const [mes, setMes] = useState(mesInicial ?? hoje.getMonth() + 1)
   const [ano, setAno] = useState(anoInicial ?? hoje.getFullYear())
 
-  function renderCartao(tarefa: Tarefa, mostrarStatus: boolean) {
+  function renderCartao(tarefa: Tarefa, mostrarStatus: boolean, arrastavel: boolean) {
     const statusInfo = STATUS_OPTIONS.find(s => s.value === tarefa.status)
     return (
-      <div key={tarefa.id} className="card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }} onClick={e => e.stopPropagation()}>
+      <div key={tarefa.id} className="card"
+        draggable={arrastavel}
+        onDragStart={() => setArrastandoId(tarefa.id!)}
+        onDragEnd={() => { setArrastandoId(null); setColunaSobre(null) }}
+        style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6, cursor: arrastavel ? 'grab' : 'default', opacity: arrastandoId === tarefa.id ? 0.4 : 1 }}
+        onClick={e => e.stopPropagation()}
+      >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <button onClick={() => onToggle(tarefa.id!, tarefa.status)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: 1 }}>
             {tarefa.status === 'CONCLUIDA' ? <CheckSquare size={14} style={{ color: 'var(--brand)' }} /> : <Square size={14} style={{ color: 'var(--text-faint)' }} />}
@@ -107,15 +116,28 @@ export default function TarefasBoard({
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, minWidth: 0, width: '100%' }}>
         {STATUS_OPTIONS.map(opt => {
           const items = tarefas.filter(t => t.status === opt.value)
+          const emFoco = colunaSobre === `status-${opt.value}`
           return (
-            <div key={opt.value} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderTop: `2px solid ${opt.color}`, borderRadius: 8 }}>
+            <div key={opt.value} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
+              onDragOver={e => { e.preventDefault(); if (arrastandoId) setColunaSobre(`status-${opt.value}`) }}
+              onDragLeave={() => setColunaSobre(c => c === `status-${opt.value}` ? null : c)}
+              onDrop={e => {
+                e.preventDefault()
+                setColunaSobre(null)
+                const id = arrastandoId
+                setArrastandoId(null)
+                if (!id) return
+                const tarefa = tarefas.find(t => t.id === id)
+                if (tarefa && tarefa.status !== opt.value) onSetStatus(id, opt.value)
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: emFoco ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderTop: `2px solid ${opt.color}`, borderRadius: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: opt.color }}>{opt.label}</span>
                 <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
               </div>
-              {items.map(t => renderCartao(t, false))}
+              {items.map(t => renderCartao(t, false, true))}
               {items.length === 0 && (
-                <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', border: '1px dashed var(--border-subtle)', borderRadius: 8 }}>Vazio</div>
+                <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: emFoco ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${emFoco ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{emFoco ? 'Largar aqui' : 'Vazio'}</div>
               )}
             </div>
           )
@@ -127,30 +149,50 @@ export default function TarefasBoard({
   function KanbanCategoria() {
     const nomesConfigurados = categoriasConfig.map(c => c.nome)
     const semCategoria = tarefas.filter(t => !nomesConfigurados.includes(t.categoria))
+
+    function dropHandlers(chaveColuna: string, nomeCategoria: string) {
+      if (!onSetCategoria) return {}
+      return {
+        onDragOver: (e: DragEvent) => { e.preventDefault(); if (arrastandoId) setColunaSobre(chaveColuna) },
+        onDragLeave: () => setColunaSobre(c => c === chaveColuna ? null : c),
+        onDrop: (e: DragEvent) => {
+          e.preventDefault()
+          setColunaSobre(null)
+          const id = arrastandoId
+          setArrastandoId(null)
+          if (!id) return
+          const tarefa = tarefas.find(t => t.id === id)
+          if (tarefa && tarefa.categoria !== nomeCategoria) onSetCategoria(id, nomeCategoria)
+        },
+      }
+    }
+
     return (
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, minWidth: 0, width: '100%' }}>
         {categoriasConfig.map(cat => {
           const items = tarefas.filter(t => t.categoria === cat.nome)
+          const chave = `cat-${cat.id}`
+          const emFoco = colunaSobre === chave
           return (
-            <div key={cat.id} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+            <div key={cat.id} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }} {...dropHandlers(chave, cat.nome)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: emFoco ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderRadius: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)' }}>{CATEGORIA_EMOJI[cat.nome] || '📌'} {cat.nome}</span>
                 <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
               </div>
-              {items.map(t => renderCartao(t, true))}
+              {items.map(t => renderCartao(t, true, !!onSetCategoria))}
               {items.length === 0 && (
-                <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', border: '1px dashed var(--border-subtle)', borderRadius: 8 }}>Vazio</div>
+                <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: emFoco ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${emFoco ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{emFoco ? 'Largar aqui' : 'Vazio'}</div>
               )}
             </div>
           )
         })}
         {semCategoria.length > 0 && (
-          <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+          <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }} {...dropHandlers('cat-nenhuma', '')}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: colunaSobre === 'cat-nenhuma' ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderRadius: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-faint)' }}>📌 Sem categoria</span>
               <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{semCategoria.length}</span>
             </div>
-            {semCategoria.map(t => renderCartao(t, true))}
+            {semCategoria.map(t => renderCartao(t, true, !!onSetCategoria))}
           </div>
         )}
         {categoriasConfig.length === 0 && semCategoria.length === 0 && (
