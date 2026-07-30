@@ -52,6 +52,11 @@ export default function TarefasPage() {
     await tarefasService.update(tarefaId, { dataLimite: data || undefined })
   }
 
+  async function setCategoria(tarefaId: string, categoria: string) {
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, categoria } : t))
+    await tarefasService.update(tarefaId, { categoria })
+  }
+
   const tarefasFiltradas = clienteFiltro === 'TODOS' ? tarefas : tarefas.filter(t => t.clienteId === clienteFiltro)
   const clienteNomePorId = Object.fromEntries(clientes.map(c => [c.id, c.empresa]))
 
@@ -82,6 +87,7 @@ export default function TarefasPage() {
             categoriasConfig={categoriasConfig}
             onToggle={toggleTarefa}
             onSetStatus={setStatus}
+            onSetCategoria={setCategoria}
             onUpdateDataLimite={updateDataLimite}
             clienteNomePorId={clienteFiltro === 'TODOS' ? clienteNomePorId : undefined}
           />

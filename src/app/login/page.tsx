@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
 import { Loader2 } from 'lucide-react'
 import { auth } from '@/lib/firebase'
 
@@ -14,11 +14,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [mensagem, setMensagem] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [enviandoReset, setEnviandoReset] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErro(null)
+    setMensagem(null)
     setLoading(true)
     try {
       await signInWithEmailAndPassword(auth, email, password)
@@ -28,6 +31,22 @@ export default function LoginPage() {
       setErro('Email ou palavra-passe incorretos.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function onEsqueciPassword() {
+    setErro(null)
+    setMensagem(null)
+    if (!email.trim()) { setErro('Escreve o teu email no campo acima e depois clica em "Esqueci a palavra-passe".'); return }
+    setEnviandoReset(true)
+    try {
+      await sendPasswordResetEmail(auth, email)
+      setMensagem('Enviámos um email para repores a palavra-passe. Verifica a caixa de entrada (e o spam).')
+    } catch (err) {
+      console.error(err)
+      setErro('Não foi possível enviar o email. Confirma que o endereço está correto.')
+    } finally {
+      setEnviandoReset(false)
     }
   }
 
@@ -45,8 +64,13 @@ export default function LoginPage() {
         <div>
           <label style={labelStyle}>Palavra-passe</label>
           <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+          <button type="button" onClick={onEsqueciPassword} disabled={enviandoReset}
+            style={{ background: 'none', border: 'none', padding: 0, marginTop: 6, fontSize: 11, color: 'var(--accent-blue)', cursor: 'pointer' }}>
+            {enviandoReset ? 'A enviar...' : 'Esqueci a palavra-passe'}
+          </button>
         </div>
         {erro && <div style={{ fontSize: 12, color: 'var(--accent-red)' }}>{erro}</div>}
+        {mensagem && <div style={{ fontSize: 12, color: 'var(--accent-green)' }}>{mensagem}</div>}
         <button type="submit" disabled={loading} className="btn btn-primary" style={{ justifyContent: 'center' }}>
           {loading ? <Loader2 size={13} className="animate-spin" /> : null} Entrar
         </button>
