@@ -79,6 +79,29 @@ export default function ClientePage() {
     await tarefasService.update(tarefaId, { categoria })
   }
 
+  function projetoAlvo(): Projeto | null {
+    if (!projetos.length) return null
+    const ativos = projetos.filter(p => p.status !== 'CONCLUIDO')
+    const lista = ativos.length ? ativos : projetos
+    return [...lista].sort((a, b) => (b.ano - a.ano) || (b.mes - a.mes))[0]
+  }
+
+  async function criarTarefaInline(dados: { titulo: string; status: TarefaStatus; categoria: string; dataLimite?: string }) {
+    const alvo = projetoAlvo()
+    if (!alvo) return
+    const doProjeto = tarefas.filter(t => t.projetoId === alvo.id)
+    const ordem = doProjeto.length ? Math.max(...doProjeto.map(t => t.ordem)) + 1 : 1
+    const dadosTarefa = {
+      projetoId: alvo.id!, clienteId: id, titulo: dados.titulo,
+      categoria: dados.categoria || 'Outros', status: dados.status, ordem,
+      dataLimite: dados.dataLimite || undefined,
+    }
+    const novoId = await tarefasService.create(dadosTarefa)
+    const atualizadas = [...tarefas, { id: novoId, ...dadosTarefa }]
+    setTarefas(atualizadas)
+    await recalcularProgressoDoProjeto(atualizadas, alvo.id!)
+  }
+
   async function adicionarLink() {
     if (!novoLink.label.trim() || !novoLink.url.trim() || !cliente) return
     const url = /^https?:\/\//i.test(novoLink.url) ? novoLink.url : `https://${novoLink.url}`
@@ -256,7 +279,7 @@ export default function ClientePage() {
           </div>
 
           {/* Tarefas — agrega todos os projectos deste cliente */}
-          {tarefas.length > 0 && (
+          {(tarefas.length > 0 || projetos.length > 0) && (
             <div className="card" style={{ padding: 16, minWidth: 0 }}>
               <div className="sec-title"><CheckSquare size={12} /> Tarefas</div>
               <TarefasBoard
@@ -266,6 +289,7 @@ export default function ClientePage() {
                 onSetStatus={setStatusTarefa}
                 onSetCategoria={setCategoriaTarefa}
                 onUpdateDataLimite={updateDataLimiteTarefa}
+                onCriar={criarTarefaInline}
               />
             </div>
           )}

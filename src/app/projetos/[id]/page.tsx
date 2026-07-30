@@ -99,6 +99,20 @@ export default function ProjetoPage() {
     finally { setSalvando(false) }
   }
 
+  async function criarTarefaInline(dados: { titulo: string; status: TarefaStatus; categoria: string; dataLimite?: string }) {
+    if (!projeto) return
+    const ordem = tarefas.length ? Math.max(...tarefas.map(t => t.ordem)) + 1 : 1
+    const dadosTarefa = {
+      projetoId: id, clienteId: projeto.clienteId, titulo: dados.titulo,
+      categoria: dados.categoria || 'Outros', status: dados.status, ordem,
+      dataLimite: dados.dataLimite || undefined,
+    }
+    const novoId = await tarefasService.create(dadosTarefa)
+    const atualizadas = [...tarefas, { id: novoId, ...dadosTarefa }]
+    setTarefas(atualizadas)
+    await recalcularProgresso(atualizadas)
+  }
+
   async function removerTarefa(tarefaId: string) {
     if (!confirm('Eliminar esta tarefa?')) return
     const atualizadas = tarefas.filter(t => t.id !== tarefaId)
@@ -214,6 +228,7 @@ export default function ProjetoPage() {
             onSetCategoria={setCategoria}
             onUpdateDataLimite={updateDataLimite}
             onRemover={removerTarefa}
+            onCriar={criarTarefaInline}
             mesInicial={projeto.mes}
             anoInicial={projeto.ano}
           />

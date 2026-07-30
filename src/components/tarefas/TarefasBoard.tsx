@@ -2,8 +2,10 @@
 
 import { useState, type DragEvent } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
+
+interface NovaTarefaDados { titulo: string; status: TarefaStatus; categoria: string; dataLimite?: string }
 
 export const CATEGORIA_EMOJI: Record<string, string> = {
   'Google Business': '📍', 'SEO': '🔍', 'Site': '🌐',
@@ -35,22 +37,57 @@ interface TarefasBoardProps {
   onSetCategoria?: (id: string, categoria: string) => void
   onUpdateDataLimite: (id: string, data: string) => void
   onRemover?: (id: string) => void
+  onCriar?: (dados: NovaTarefaDados) => void | Promise<void>
   clienteNomePorId?: Record<string, string>
   mesInicial?: number
   anoInicial?: number
 }
 
 export default function TarefasBoard({
-  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, clienteNomePorId,
+  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, clienteNomePorId,
   mesInicial, anoInicial,
 }: TarefasBoardProps) {
   const [vista, setVista] = useState<Vista>('status')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [arrastandoId, setArrastandoId] = useState<string | null>(null)
   const [colunaSobre, setColunaSobre] = useState<string | null>(null)
+  const [criandoChave, setCriandoChave] = useState<string | null>(null)
+  const [novoTitulo, setNovoTitulo] = useState('')
   const hoje = new Date()
   const [mes, setMes] = useState(mesInicial ?? hoje.getMonth() + 1)
   const [ano, setAno] = useState(anoInicial ?? hoje.getFullYear())
+
+  function abrirCriacao(chave: string) { setCriandoChave(chave); setNovoTitulo('') }
+  function cancelarCriacao() { setCriandoChave(null); setNovoTitulo('') }
+  async function submeterCriacao(extra: { status: TarefaStatus; categoria: string; dataLimite?: string }) {
+    if (!onCriar || !novoTitulo.trim()) return
+    await onCriar({ titulo: novoTitulo.trim(), ...extra })
+    setCriandoChave(null)
+    setNovoTitulo('')
+  }
+
+  function renderAdicionar(chave: string, extra: { status: TarefaStatus; categoria: string; dataLimite?: string }) {
+    if (!onCriar) return null
+    if (criandoChave === chave) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} onClick={e => e.stopPropagation()}>
+          <input autoFocus className="input" style={{ fontSize: 11, padding: '5px 8px' }} placeholder="Título da tarefa"
+            value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submeterCriacao(extra); if (e.key === 'Escape') cancelarCriacao() }} />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => submeterCriacao(extra)} disabled={!novoTitulo.trim()} className="btn btn-primary" style={{ fontSize: 10, padding: '3px 8px', flex: 1, justifyContent: 'center' }}>Adicionar</button>
+            <button onClick={cancelarCriacao} className="btn btn-ghost" style={{ fontSize: 10, padding: '3px 8px' }}>×</button>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <button onClick={e => { e.stopPropagation(); abrirCriacao(chave) }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '6px 8px', fontSize: 11, color: 'var(--text-faint)', backgroundColor: 'transparent', border: '1px dashed var(--border-subtle)', borderRadius: 6, cursor: 'pointer', width: '100%' }}>
+        <Plus size={11} /> Adicionar tarefa
+      </button>
+    )
+  }
 
   function renderCartao(tarefa: Tarefa, mostrarStatus: boolean, arrastavel: boolean) {
     const statusInfo = STATUS_OPTIONS.find(s => s.value === tarefa.status)
@@ -139,6 +176,7 @@ export default function TarefasBoard({
               {items.length === 0 && (
                 <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: emFoco ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${emFoco ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{emFoco ? 'Largar aqui' : 'Vazio'}</div>
               )}
+              {renderAdicionar(`status-${opt.value}`, { status: opt.value, categoria: '' })}
             </div>
           )
         })}
@@ -183,19 +221,21 @@ export default function TarefasBoard({
               {items.length === 0 && (
                 <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: emFoco ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${emFoco ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{emFoco ? 'Largar aqui' : 'Vazio'}</div>
               )}
+              {renderAdicionar(`cria-cat-${cat.id}`, { status: 'PENDENTE', categoria: cat.nome })}
             </div>
           )
         })}
-        {semCategoria.length > 0 && (
+        {(semCategoria.length > 0 || onCriar) && (
           <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }} {...dropHandlers('cat-nenhuma', '')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: colunaSobre === 'cat-nenhuma' ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderRadius: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-faint)' }}>📌 Sem categoria</span>
               <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{semCategoria.length}</span>
             </div>
             {semCategoria.map(t => renderCartao(t, true, !!onSetCategoria))}
+            {renderAdicionar('cria-cat-nenhuma', { status: 'PENDENTE', categoria: '' })}
           </div>
         )}
-        {categoriasConfig.length === 0 && semCategoria.length === 0 && (
+        {categoriasConfig.length === 0 && semCategoria.length === 0 && !onCriar && (
           <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)', width: '100%' }}>Sem categorias configuradas</div>
         )}
       </div>
@@ -253,6 +293,24 @@ export default function TarefasBoard({
                       </div>
                     ))}
                   </div>
+                  {onCriar && (
+                    criandoChave === `dia-${dia}` ? (
+                      <input autoFocus value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') submeterCriacao({ status: 'PENDENTE', categoria: '', dataLimite: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` })
+                          if (e.key === 'Escape') cancelarCriacao()
+                        }}
+                        onBlur={() => { if (!novoTitulo.trim()) cancelarCriacao() }}
+                        placeholder="Título…"
+                        style={{ fontSize: 9, width: '100%', marginTop: 2, padding: '2px 3px', border: '1px solid var(--border-strong)', borderRadius: 3, backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)', outline: 'none' }} />
+                    ) : (
+                      <button onClick={e => { e.stopPropagation(); abrirCriacao(`dia-${dia}`) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 2, width: '100%', fontSize: 9, color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        <Plus size={8} /> tarefa
+                      </button>
+                    )
+                  )}
                 </>
               )}
             </div>
@@ -290,7 +348,7 @@ export default function TarefasBoard({
         })}
       </div>
 
-      {tarefas.length === 0 ? (
+      {tarefas.length === 0 && !onCriar ? (
         <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)' }}>Sem tarefas</div>
       ) : (
         <>
