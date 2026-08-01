@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Users, Plus, Search, Loader2 } from 'lucide-react'
-import { leadsService, reunioesService, type Lead, type LeadStatus, type Origem } from '@/lib/db'
+import { Users, Plus, Search, Loader2, ClipboardCheck, CalendarClock, AlertTriangle } from 'lucide-react'
+import { leadsService, reunioesService, auditoriasService, propostasService, type Lead, type LeadStatus, type Origem, type Reuniao, type Proposta } from '@/lib/db'
 import type { Timestamp } from 'firebase/firestore'
 
 const COLUNAS: { id: LeadStatus; label: string; color: string }[] = [
@@ -19,6 +19,7 @@ const COLUNAS: { id: LeadStatus; label: string; color: string }[] = [
 const ORIGEM_LABEL: Record<Origem, string> = {
   INSTAGRAM: 'Instagram', LANDING: 'Landing', INDICACAO: 'Indicação', COLD: 'Cold', OUTRO: 'Outro',
 }
+const fmtEUR = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' })
 
 function ScoreDots({ score = 0 }: { score?: number }) {
   return (
@@ -41,10 +42,17 @@ function timestampToISO(ts?: Timestamp): string | undefined {
   if (!ts) return undefined
   try { return ts.toDate().toISOString() } catch { return undefined }
 }
+function formatarDataCurta(iso: string, hojeStr: string) {
+  if (iso === hojeStr) return 'Hoje'
+  const [, m, d] = iso.split('-')
+  return `${d}/${m}`
+}
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
-  const [leadsComReuniaoHoje, setLeadsComReuniaoHoje] = useState<Set<string>>(new Set())
+  const [auditoriaLeadIds, setAuditoriaLeadIds] = useState<Set<string>>(new Set())
+  const [reuniaoPorLead, setReuniaoPorLead] = useState<Record<string, Reuniao>>({})
+  const [propostaPorLead, setPropostaPorLead] = useState<Record<string, Proposta>>({})
   const [loading, setLoading] = useState(true)
   const [pesquisa, setPesquisa] = useState('')
   const [arrastandoId, setArrastandoId] = useState<string | null>(null)
@@ -54,10 +62,26 @@ export default function LeadsPage() {
 
   async function load() {
     try {
-      const [ls, reunioes] = await Promise.all([leadsService.getAll(), reunioesService.getAll()])
+      const [ls, reunioes, auditorias, propostas] = await Promise.all([
+        leadsService.getAll(), reunioesService.getAll(), auditoriasService.getAll(), propostasService.getAll(),
+      ])
       setLeads(ls)
+      setAuditoriaLeadIds(new Set(auditorias.map(a => a.leadId)))
+
       const hojeStr = new Date().toISOString().slice(0, 10)
-      setLeadsComReuniaoHoje(new Set(reunioes.filter(r => r.data === hojeStr && r.status === 'AGENDADA' && r.leadId).map(r => r.leadId!)))
+      const proximas: Record<string, Reuniao> = {}
+      reunioes.filter(r => r.status === 'AGENDADA' && r.leadId && r.data >= hojeStr).forEach(r => {
+        const atual = proximas[r.leadId!]
+        if (!atual || r.data < atual.data) proximas[r.leadId!] = r
+      })
+      setReuniaoPorLead(proximas)
+
+      const propostasAtivas: Record<string, Proposta> = {}
+      propostas.filter(p => p.status !== 'RECUSADA').forEach(p => {
+        const atual = propostasAtivas[p.leadId]
+        if (!atual || (p.createdAt?.toMillis?.() || 0) > (atual.createdAt?.toMillis?.() || 0)) propostasAtivas[p.leadId] = p
+      })
+      setPropostaPorLead(propostasAtivas)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -78,6 +102,8 @@ export default function LeadsPage() {
       <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
     </div>
   )
+
+  const hojeStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
@@ -101,7 +127,7 @@ export default function LeadsPage() {
             const itens = leadsFiltrados.filter(l => l.status === col.id)
             const emFoco = colunaSobre === col.id
             return (
-              <div key={col.id} style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
+              <div key={col.id} style={{ width: 226, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
                 onDragOver={e => { e.preventDefault(); if (arrastandoId) setColunaSobre(col.id) }}
                 onDragLeave={() => setColunaSobre(c => c === col.id ? null : c)}
                 onDrop={e => {
@@ -122,7 +148,10 @@ export default function LeadsPage() {
                   const dias = diasDesde(timestampToISO(lead.createdAt) || (lead.updatedAt as unknown as string))
                   const diasParado = diasDesde(lead.updatedAt as unknown as string)
                   const atrasado = diasParado !== null && diasParado > 5
-                  const reuniaoHoje = lead.id ? leadsComReuniaoHoje.has(lead.id) : false
+                  const proximaReuniao = lead.id ? reuniaoPorLead[lead.id] : undefined
+                  const reuniaoHoje = proximaReuniao?.data === hojeStr
+                  const propostaAtiva = lead.id ? propostaPorLead[lead.id] : undefined
+                  const temAuditoria = lead.id ? auditoriaLeadIds.has(lead.id) : false
                   return (
                     <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none' }}>
                       <div className="card"
@@ -133,16 +162,41 @@ export default function LeadsPage() {
                           padding: 10, cursor: 'grab', opacity: arrastandoId === lead.id ? 0.4 : 1,
                           borderLeft: atrasado ? '2px solid var(--accent-red)' : reuniaoHoje ? '2px solid var(--accent-blue)' : undefined,
                         }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>{lead.empresa}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.empresa}</span>
+                          {temAuditoria && <ClipboardCheck size={11} style={{ color: 'var(--accent-teal)', flexShrink: 0 }} />}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                           <span className="pill pill-blue">{ORIGEM_LABEL[lead.origem]}</span>
                           <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{lead.planoRec || '—'}</span>
                         </div>
                         <ScoreDots score={lead.score} />
+
+                        {(proximaReuniao || propostaAtiva) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                            {proximaReuniao && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: reuniaoHoje ? 'var(--accent-blue)' : 'var(--text-muted)' }}>
+                                <CalendarClock size={10} /> {formatarDataCurta(proximaReuniao.data, hojeStr)} às {proximaReuniao.hora}
+                              </div>
+                            )}
+                            {propostaAtiva && (
+                              <div style={{ fontSize: 10, color: 'var(--accent-green)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                                {fmtEUR.format(propostaAtiva.valor)}/mês proposto
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                          <span style={{ fontSize: 10, color: atrasado ? 'var(--accent-red)' : reuniaoHoje ? 'var(--accent-blue)' : 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {lead.proximaAcao || '—'}
-                          </span>
+                          {atrasado ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--accent-red)' }}>
+                              <AlertTriangle size={10} /> {diasParado}d sem actividade
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {lead.proximaAcao || '—'}
+                            </span>
+                          )}
                           <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0, marginLeft: 6 }}>{dias !== null ? `${dias}d` : ''}</span>
                         </div>
                       </div>
