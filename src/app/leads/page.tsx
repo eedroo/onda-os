@@ -1,113 +1,163 @@
 'use client'
 
-import { Users, Plus, Filter, Kanban, Table } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { Users, Plus, Search, Loader2 } from 'lucide-react'
+import { leadsService, reunioesService, type Lead, type LeadStatus, type Origem } from '@/lib/db'
+import type { Timestamp } from 'firebase/firestore'
 
-const colunas = [
-  { id: 'NOVO',        label: 'Novo',        color: 'text-accent-blue',   bg: 'border-t-sky-500',
-    leads: [
-      { empresa: 'Padaria Central',    origem: 'Instagram', plano: 'Growth',   score: 2, acao: 'Follow-up', dias: 'hoje' },
-      { empresa: 'Clínica Dental Pro', origem: 'Landing',   plano: 'Presence', score: 3, acao: 'Ligar',     dias: 'ontem' },
-    ]},
-  { id: 'QUALIFICACAO', label: 'Qualificação', color: 'text-accent-purple', bg: 'border-t-violet-500',
-    leads: [
-      { empresa: 'Restaurante Mar',   origem: 'Cold',   plano: 'Growth',   score: 2, acao: 'Parado 5d',  dias: '5d', urgent: true },
-      { empresa: 'Academia Fitness+', origem: 'Landing', plano: 'Presence', score: 4, acao: 'Qualificar', dias: '1d' },
-    ]},
-  { id: 'AUDITORIA', label: 'Auditoria', color: 'text-accent-teal', bg: 'border-t-cyan-500',
-    leads: [
-      { empresa: 'Spa Zen Z',       origem: 'Instagram', plano: 'Presence', score: 3, acao: 'Enviar audit.', dias: '2d', hot: true },
-      { empresa: 'Boutique Moda L', origem: 'Instagram', plano: 'Growth',   score: 4, acao: 'Em curso',      dias: 'hoje' },
-    ]},
-  { id: 'REUNIAO', label: 'Reunião', color: 'text-accent-amber', bg: 'border-t-amber-500',
-    leads: [
-      { empresa: 'Clínica Beleza X', origem: 'Landing',   plano: 'Growth', score: 4, acao: 'Hoje 11h', dias: 'hoje', hot: true },
-      { empresa: 'Pet Shop Amigos',  origem: 'Instagram',  plano: 'One',    score: 3, acao: 'Sex 10h',  dias: '4d' },
-    ]},
-  { id: 'PROPOSTA', label: 'Proposta', color: 'text-orange-400', bg: 'border-t-orange-500',
-    leads: [
-      { empresa: 'Ginásio FitLife', origem: 'Landing',   plano: 'Growth',   score: 4, acao: 'Aguarda 8d', dias: '8d', urgent: true },
-      { empresa: 'Hotel Douro Y',   origem: 'Indicação', plano: 'Presence', score: 5, acao: 'Follow-up',  dias: '2d' },
-    ]},
-  { id: 'FECHADO', label: 'Fechado', color: 'text-accent-green', bg: 'border-t-green-500',
-    leads: [
-      { empresa: 'Hedro Casa', origem: 'Indicação', plano: 'Growth',   score: 5, acao: 'Onboarding', dias: '349€/m', won: true },
-      { empresa: 'Studio K',   origem: 'Landing',   plano: 'Presence', score: 4, acao: 'Kickoff',    dias: '199€/m', won: true },
-    ]},
+const COLUNAS: { id: LeadStatus; label: string; color: string }[] = [
+  { id: 'NOVO', label: 'Novo', color: 'var(--accent-blue)' },
+  { id: 'QUALIFICACAO', label: 'Qualificação', color: 'var(--accent-purple)' },
+  { id: 'AUDITORIA', label: 'Auditoria', color: 'var(--accent-teal)' },
+  { id: 'REUNIAO', label: 'Reunião', color: 'var(--accent-amber)' },
+  { id: 'PROPOSTA', label: 'Proposta', color: 'var(--accent-purple)' },
+  { id: 'FECHADO', label: 'Fechado', color: 'var(--accent-green)' },
+  { id: 'PERDIDO', label: 'Perdido', color: 'var(--accent-red)' },
 ]
 
-function ScoreDots({ score }: { score: number }) {
+const ORIGEM_LABEL: Record<Origem, string> = {
+  INSTAGRAM: 'Instagram', LANDING: 'Landing', INDICACAO: 'Indicação', COLD: 'Cold', OUTRO: 'Outro',
+}
+
+function ScoreDots({ score = 0 }: { score?: number }) {
   return (
-    <div className="flex gap-0.5">
-      {[1,2,3,4,5].map((i) => (
-        <div key={i} className={`w-1.5 h-1.5 rounded-full ${
-          i <= score
-            ? score >= 4 ? 'bg-red-500' : score >= 3 ? 'bg-amber-500' : 'bg-sky-500'
-            : 'bg-border-subtle'
-        }`} />
+    <div style={{ display: 'flex', gap: 3 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} style={{
+          width: 6, height: 6, borderRadius: '50%',
+          backgroundColor: i > score ? 'var(--border-subtle)' : score >= 4 ? 'var(--accent-red)' : score >= 3 ? 'var(--accent-amber)' : 'var(--accent-blue)',
+        }} />
       ))}
     </div>
   )
 }
 
+function diasDesde(iso?: string): number | null {
+  if (!iso) return null
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+}
+function timestampToISO(ts?: Timestamp): string | undefined {
+  if (!ts) return undefined
+  try { return ts.toDate().toISOString() } catch { return undefined }
+}
+
 export default function LeadsPage() {
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [leadsComReuniaoHoje, setLeadsComReuniaoHoje] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [pesquisa, setPesquisa] = useState('')
+  const [arrastandoId, setArrastandoId] = useState<string | null>(null)
+  const [colunaSobre, setColunaSobre] = useState<LeadStatus | null>(null)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    try {
+      const [ls, reunioes] = await Promise.all([leadsService.getAll(), reunioesService.getAll()])
+      setLeads(ls)
+      const hojeStr = new Date().toISOString().slice(0, 10)
+      setLeadsComReuniaoHoje(new Set(reunioes.filter(r => r.data === hojeStr && r.status === 'AGENDADA' && r.leadId).map(r => r.leadId!)))
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  async function moverStatus(id: string, status: LeadStatus) {
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, status, updatedAt: new Date().toISOString() as unknown as Timestamp } : l))
+    await leadsService.updateStatus(id, status)
+  }
+
+  const leadsFiltrados = useMemo(() => {
+    const q = pesquisa.trim().toLowerCase()
+    if (!q) return leads
+    return leads.filter(l => l.empresa.toLowerCase().includes(q))
+  }, [leads, pesquisa])
+
+  if (loading) return (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
+    </div>
+  )
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-bg-surface flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-[16px] font-medium text-text-primary">
-            <Users size={18} className="text-accent-blue" /> Leads
-          </div>
-          <div className="flex bg-bg-input border border-border-subtle rounded-lg p-0.5">
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] bg-sky-950 text-accent-blue">
-              <Kanban size={12} /> Kanban
-            </div>
-            <div className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-text-muted">
-              <Table size={12} /> Tabela
-            </div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
+          <Users size={18} style={{ color: 'var(--accent-blue)' }} /> Leads
         </div>
-        <div className="flex items-center gap-2">
-          <input placeholder="Pesquisar lead..." className="bg-bg-input border border-border-subtle rounded-lg px-3 py-1.5 text-[12px] text-text-secondary outline-none w-36 focus:border-brand transition-colors" />
-          <button className="btn btn-ghost"><Filter size={13} /> Filtrar</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={12} style={{ position: 'absolute', left: 9, top: 9, color: 'var(--text-faint)' }} />
+            <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar lead..."
+              className="input" style={{ width: 180, paddingLeft: 26 }} />
+          </div>
           <Link href="/leads/novo" className="btn btn-primary"><Plus size={13} /> Novo lead</Link>
         </div>
       </div>
 
-      <div className="flex gap-2.5 p-4 overflow-x-auto flex-1 items-start">
-        {colunas.map((col) => (
-          <div key={col.id} className="w-[200px] flex-shrink-0 flex flex-col gap-2">
-            <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg card border-t-2 ${col.bg}`}>
-              <span className={`text-[11px] font-medium uppercase tracking-wider ${col.color}`}>{col.label}</span>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-bg-input text-text-muted">{col.leads.length}</span>
-            </div>
+      <div style={{ flex: 1, overflow: 'auto', padding: 16, minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+          {COLUNAS.map(col => {
+            const itens = leadsFiltrados.filter(l => l.status === col.id)
+            const emFoco = colunaSobre === col.id
+            return (
+              <div key={col.id} style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
+                onDragOver={e => { e.preventDefault(); if (arrastandoId) setColunaSobre(col.id) }}
+                onDragLeave={() => setColunaSobre(c => c === col.id ? null : c)}
+                onDrop={e => {
+                  e.preventDefault()
+                  setColunaSobre(null)
+                  const id = arrastandoId
+                  setArrastandoId(null)
+                  if (!id) return
+                  const lead = leads.find(l => l.id === id)
+                  if (lead && lead.status !== col.id) moverStatus(id, col.id)
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: emFoco ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderTop: `2px solid ${col.color}`, borderRadius: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
+                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{itens.length}</span>
+                </div>
 
-            {col.leads.map((lead, i) => (
-              <div key={i} className={`card p-3 hover:border-border-strong cursor-pointer transition-all ${
-                (lead as any).urgent ? 'border-l-2 border-l-red-500' :
-                (lead as any).hot   ? 'border-l-2 border-l-brand'   :
-                (lead as any).won   ? 'border-l-2 border-l-green-500 opacity-75' : ''
-              }`}>
-                <div className="text-[13px] font-medium text-text-primary mb-1.5">{lead.empresa}</div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="pill pill-blue">{lead.origem}</span>
-                  <span className="text-[10px] text-text-faint">{lead.plano}</span>
-                </div>
-                <ScoreDots score={lead.score} />
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-border-subtle">
-                  <span className={`text-[10px] ${(lead as any).urgent ? 'text-accent-red' : (lead as any).hot ? 'text-accent-blue' : 'text-text-faint'}`}>
-                    {lead.acao}
-                  </span>
-                  <span className="text-[10px] text-text-faint">{lead.dias}</span>
-                </div>
+                {itens.map(lead => {
+                  const dias = diasDesde(timestampToISO(lead.createdAt) || (lead.updatedAt as unknown as string))
+                  const diasParado = diasDesde(lead.updatedAt as unknown as string)
+                  const atrasado = diasParado !== null && diasParado > 5
+                  const reuniaoHoje = lead.id ? leadsComReuniaoHoje.has(lead.id) : false
+                  return (
+                    <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none' }}>
+                      <div className="card"
+                        draggable
+                        onDragStart={() => setArrastandoId(lead.id!)}
+                        onDragEnd={() => { setArrastandoId(null); setColunaSobre(null) }}
+                        style={{
+                          padding: 10, cursor: 'grab', opacity: arrastandoId === lead.id ? 0.4 : 1,
+                          borderLeft: atrasado ? '2px solid var(--accent-red)' : reuniaoHoje ? '2px solid var(--accent-blue)' : undefined,
+                        }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>{lead.empresa}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span className="pill pill-blue">{ORIGEM_LABEL[lead.origem]}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{lead.planoRec || '—'}</span>
+                        </div>
+                        <ScoreDots score={lead.score} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: 10, color: atrasado ? 'var(--accent-red)' : reuniaoHoje ? 'var(--accent-blue)' : 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {lead.proximaAcao || '—'}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)', flexShrink: 0, marginLeft: 6 }}>{dias !== null ? `${dias}d` : ''}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+
+                <Link href={`/leads/novo?status=${col.id}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 10px', border: '1px dashed var(--border-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-faint)', textDecoration: 'none' }}>
+                  <Plus size={12} /> Adicionar
+                </Link>
               </div>
-            ))}
-
-            <button className="flex items-center gap-1.5 px-2.5 py-2 border border-dashed border-border-subtle rounded-lg text-[12px] text-text-faint hover:border-border-strong hover:text-text-muted transition-colors">
-              <Plus size={12} /> Adicionar
-            </button>
-          </div>
-        ))}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
