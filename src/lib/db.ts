@@ -74,12 +74,14 @@ export interface Tarefa {
 
 export interface Receita {
   id?: string; clienteId: string; clienteNome?: string; descricao: string; tipo: string
-  valor: number; data: string; estado: EstadoPagamento; recorrente: boolean; notas?: string; createdAt?: Timestamp
+  valor: number; data: string; estado: EstadoPagamento; recorrente: boolean
+  metodoPagamento?: string; notas?: string; createdAt?: Timestamp
 }
 
 export interface Despesa {
   id?: string; descricao: string; categoria: string; valor: number; data: string
-  estado: EstadoPagamento; recorrente: boolean; notas?: string; createdAt?: Timestamp
+  estado: EstadoPagamento; recorrente: boolean
+  metodoPagamento?: string; notas?: string; createdAt?: Timestamp
 }
 
 // ─── Configuração: categorias, serviços, planos ────────────────────────────────
@@ -339,6 +341,12 @@ export const financeiroService = {
   async createDespesa(data: Omit<Despesa, 'id' | 'createdAt'>): Promise<string> {
     const ref = await addDoc(collection(db, 'despesas'), { ...data, createdAt: serverTimestamp() })
     return ref.id
+  },
+  async updateReceita(id: string, data: Partial<Receita>): Promise<void> {
+    await updateDoc(doc(db, 'receitas', id), data as Record<string, unknown>)
+  },
+  async updateDespesa(id: string, data: Partial<Despesa>): Promise<void> {
+    await updateDoc(doc(db, 'despesas', id), data as Record<string, unknown>)
   },
   async getMRR(): Promise<number> {
     const snap = await getDocs(collection(db, 'receitas'))
