@@ -74,6 +74,22 @@ export interface Contrato {
   createdAt?: Timestamp
 }
 
+// ─── Knowledge Base ─────────────────────────────────────────────────────────
+export type DocTipo = 'SOP' | 'SCRIPT' | 'PROMPT' | 'REFERENCIA' | 'TEMPLATE' | 'OUTRO'
+export type DocCategoria = 'AGENCIA' | 'COMERCIAL' | 'OPERACIONAL' | 'IA' | 'DESIGN' | 'OUTRO'
+
+export interface KBDoc {
+  id?: string
+  titulo: string
+  tipo: DocTipo
+  categoria: DocCategoria
+  conteudo: string
+  tags?: string[]
+  favorito?: boolean
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+}
+
 export interface ServicoCliente {
   id: string; nome: string; ativo: boolean
   frequencia: Frequencia; quantidade: number; unidade: string; notas?: string
@@ -746,4 +762,192 @@ export const contratosService = {
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'contratos', id))
   },
+}
+
+export const kbService = {
+  async getAll(): Promise<KBDoc[]> {
+    const snap = await getDocs(collection(db, 'kb'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KBDoc))
+  },
+  async getById(id: string): Promise<KBDoc | null> {
+    const snap = await getDoc(doc(db, 'kb', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as KBDoc : null
+  },
+  async create(data: Omit<KBDoc, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'kb'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<KBDoc>): Promise<void> {
+    await updateDoc(doc(db, 'kb', id), { ...data, updatedAt: serverTimestamp() } as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'kb', id))
+  },
+  async toggleFavorito(id: string, favorito: boolean): Promise<void> {
+    await updateDoc(doc(db, 'kb', id), { favorito })
+  },
+}
+
+export async function seedKB(): Promise<void> {
+  const existentes = await kbService.getAll()
+  if (existentes.length > 0) return
+
+  const docs: Omit<KBDoc, 'id' | 'createdAt' | 'updatedAt'>[] = [
+    {
+      titulo: 'SOP — Plano One', tipo: 'SOP', categoria: 'OPERACIONAL', tags: ['sop', 'one', 'checklist'],
+      conteudo: `## Checklist mensal — Plano One
+
+Segue esta ordem todos os meses para o plano One.
+
+- Publicações Google Business (4/mês)
+- Gestão e resposta a avaliações
+- Análise SEO local
+- Relatório mensal ao cliente
+
+**Prazo:** todas as tarefas devem estar concluídas até ao dia 25 de cada mês.
+
+## Notas
+
+Se o cliente não tiver Google Business Profile activo, sinalizar à equipa antes de iniciar o mês.`,
+    },
+    {
+      titulo: 'SOP — Plano Presence', tipo: 'SOP', categoria: 'OPERACIONAL', tags: ['sop', 'presence', 'checklist'],
+      conteudo: `## Checklist mensal — Plano Presence
+
+Inclui tudo do plano One, mais manutenção do site.
+
+- Publicações Google Business (4/mês)
+- Gestão e resposta a avaliações
+- Análise SEO local
+- Manutenção e backup do site
+- Verificação de velocidade e SSL
+- Revisão SEO on-page
+- Relatório mensal ao cliente
+
+**Prazo:** todas as tarefas devem estar concluídas até ao dia 25 de cada mês.`,
+    },
+    {
+      titulo: 'SOP — Plano Growth', tipo: 'SOP', categoria: 'OPERACIONAL', tags: ['sop', 'growth', 'checklist'],
+      conteudo: `## Checklist mensal — Plano Growth
+
+Inclui tudo do plano Presence, mais estratégia e conteúdo.
+
+- Tudo o que está incluído no Presence
+- Estratégia do mês (reunião interna)
+- 4 artigos de blog
+- Análise de métricas e palavras-chave
+- Acompanhamento estratégico com o cliente
+- Relatório avançado
+
+**Prazo:** estratégia do mês definida até ao dia 5; restantes tarefas até ao dia 25.`,
+    },
+    {
+      titulo: 'Script — Primeira Abordagem', tipo: 'SCRIPT', categoria: 'COMERCIAL', tags: ['script', 'comercial', 'abordagem'],
+      conteudo: `## Objectivo
+
+Conseguir uma reunião de 15 minutos para apresentar uma análise gratuita da presença digital.
+
+## Script — telefone ou mensagem
+
+Olá [Nome], sou da Onda Digital. Reparei que a [Empresa] tem [observação específica — ex: poucas publicações no Google, site lento]. Fazemos uma auditoria gratuita à presença digital de negócios locais — tem 15 minutos esta semana para eu mostrar o que encontrei?
+
+## Se responder "sim"
+
+Agendar de imediato. Não deixar para "depois enviamos data".
+
+## Se responder "não tenho interesse"
+
+Sem problema — posso enviar por email a auditoria, sem compromisso? Muitas vezes é mais fácil decidir depois de ver os números.`,
+    },
+    {
+      titulo: 'Script — Respostas a Objecções', tipo: 'SCRIPT', categoria: 'COMERCIAL', tags: ['script', 'comercial', 'objeccoes'],
+      conteudo: `## "Está caro"
+
+O preço reflecte gestão contínua, não uma tarefa única. Pergunta: quanto vale para si um cliente novo por mês? O plano paga-se com um único cliente extra.
+
+## "Já tentei isto antes e não resultou"
+
+O que foi tentado exactamente, e durante quanto tempo? Muitas vezes falha por falta de consistência, não por a estratégia estar errada. Mostrar exemplos concretos de resultados de outros clientes.
+
+## "Preciso de pensar"
+
+Perfeitamente compreensível. Posso perguntar o que especificamente precisa de ponderar — é o preço, o timing, ou tem dúvidas sobre os resultados? Isso ajuda a dar a informação certa em vez de esperar às cegas.`,
+    },
+    {
+      titulo: 'Prompt — Auditor Digital', tipo: 'PROMPT', categoria: 'IA', tags: ['prompt', 'ia', 'auditoria'],
+      conteudo: `Analisa a presença digital do seguinte negócio e dá-me um diagnóstico estruturado.
+
+Dados do negócio:
+- Nome: [empresa]
+- Website: [website]
+- Instagram: [instagram]
+- Sector: [sector]
+
+Para cada uma destas áreas, dá uma pontuação de 1 a 5 e uma frase de justificação: Google Business, Website, SEO, Redes Sociais, Conversão.
+
+No final, resume em 3 frases os problemas mais críticos e recomenda um plano (One, Presence ou Growth) com justificação.`,
+    },
+    {
+      titulo: 'Prompt — Gerador de Proposta', tipo: 'PROMPT', categoria: 'IA', tags: ['prompt', 'ia', 'proposta'],
+      conteudo: `Cria uma proposta comercial persuasiva e directa para o seguinte lead.
+
+Dados:
+- Empresa: [empresa]
+- Origem: [origem]
+- Plano recomendado: [plano]
+- Valor mensal: [valor]
+- Contexto/notas: [notas]
+
+A proposta deve ter: um parágrafo de abertura personalizado, os problemas identificados na auditoria, os benefícios concretos do plano recomendado (não listar features genéricas), e uma chamada à acção clara.
+
+Tom: directo, sem jargão técnico, focado em resultados de negócio.`,
+    },
+    {
+      titulo: 'Prompt — Relatório Mensal', tipo: 'PROMPT', categoria: 'IA', tags: ['prompt', 'ia', 'relatorio'],
+      conteudo: `Transforma as seguintes métricas num relatório mensal claro para o cliente.
+
+Métricas:
+[colar métricas — publicações, alcance, avaliações, tráfego do site, etc.]
+
+O relatório deve ter: um resumo de 2 frases no topo, os 3 destaques do mês, e uma secção "o que vem a seguir" com o plano para o próximo mês.
+
+Tom: profissional mas simples — o cliente não é especialista em marketing.`,
+    },
+    {
+      titulo: 'Referência — Funil Comercial', tipo: 'REFERENCIA', categoria: 'COMERCIAL', tags: ['referencia', 'funil', 'comercial'],
+      conteudo: `## As fases do funil
+
+- **Novo** — lead captado, ainda sem qualificação
+- **Qualificação** — confirmar que a empresa e o contacto são reais e há fit
+- **Auditoria** — análise da presença digital, gera diagnóstico e plano recomendado
+- **Reunião** — apresentação da auditoria e dos resultados possíveis
+- **Proposta** — envio de valor e condições
+- **Fechado** — contrato assinado, cliente criado no sistema
+- **Perdido** — lead não avançou, motivo registado
+
+## Regra geral
+
+Nunca avançar uma fase sem ter completado a anterior — a qualidade da auditoria e da reunião são o que diferencia a Onda Digital de uma agência genérica.`,
+    },
+    {
+      titulo: 'Referência — Planos e Preços', tipo: 'REFERENCIA', categoria: 'AGENCIA', tags: ['referencia', 'planos', 'precos'],
+      conteudo: `## Plano One
+
+Presença digital essencial: Google Business, avaliações, SEO local, relatório mensal.
+
+## Plano Presence
+
+Tudo o que está no One, mais manutenção e optimização do site.
+
+## Plano Growth
+
+Tudo o que está no Presence, mais estratégia, blog e acompanhamento avançado.
+
+## Nota
+
+Os preços exactos e condições comerciais estão no documento de propostas — este documento é só para consulta rápida do que está incluído em cada plano.`,
+    },
+  ]
+
+  for (const d of docs) await kbService.create(d)
 }
