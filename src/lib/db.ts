@@ -21,8 +21,6 @@ export type ContratoStatus = 'RASCUNHO' | 'ENVIADO' | 'ASSINADO' | 'CANCELADO'
 export type Origem = 'INSTAGRAM' | 'LANDING' | 'INDICACAO' | 'COLD' | 'OUTRO'
 export type PlanoRec = 'ONE' | 'PRESENCE' | 'GROWTH' | 'PERSONALIZADO'
 
-export interface HistoricoLead { status: LeadStatus; data: string }
-
 export interface Lead {
   id?: string
   empresa: string; contacto?: string; email?: string; telefone?: string
@@ -30,8 +28,20 @@ export interface Lead {
   origem: Origem; status: LeadStatus; planoRec?: PlanoRec
   score?: number; proximaAcao?: string; notas?: string; valorPotencial?: number
   checklist?: string[]
-  historico?: HistoricoLead[]
   createdAt?: Timestamp; updatedAt?: Timestamp
+}
+
+// Subcoleção leads/{id}/timeline — histórico de actividade do lead
+export type TimelineTipo = 'STATUS' | 'NOTA' | 'ACCAO'
+export interface TimelineEntry {
+  id?: string
+  tipo: TimelineTipo
+  descricao: string
+  createdAt?: Timestamp
+}
+const STATUS_LABEL_PT: Record<LeadStatus, string> = {
+  NOVO: 'Novo', QUALIFICACAO: 'Qualificação', AUDITORIA: 'Auditoria', REUNIAO: 'Reunião',
+  PROPOSTA: 'Proposta', FECHADO: 'Fechado', PERDIDO: 'Perdido',
 }
 
 export interface Auditoria {
@@ -592,25 +602,53 @@ export const leadsService = {
     return snap.exists() ? { id: snap.id, ...snap.data() } as Lead : null
   },
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const agora = new Date().toISOString()
-    const ref = await addDoc(collection(db, 'leads'), {
-      ...data, createdAt: serverTimestamp(), updatedAt: agora,
-      historico: [{ status: data.status, data: agora }],
-    })
+    const ref = await addDoc(collection(db, 'leads'), { ...data, createdAt: serverTimestamp(), updatedAt: new Date().toISOString() })
+    await leadsService.addTimelineEntry(ref.id, { tipo: 'ACCAO', descricao: 'Lead criado' })
     return ref.id
   },
   async update(id: string, data: Partial<Lead>): Promise<void> {
     await updateDoc(doc(db, 'leads', id), { ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>)
   },
   async updateStatus(id: string, status: LeadStatus): Promise<void> {
-    const agora = new Date().toISOString()
-    await updateDoc(doc(db, 'leads', id), {
-      status, updatedAt: agora,
-      historico: arrayUnion({ status, data: agora }),
-    })
+    await updateDoc(doc(db, 'leads', id), { status, updatedAt: new Date().toISOString() })
+    await leadsService.addTimelineEntry(id, { tipo: 'STATUS', descricao: `Status alterado para ${STATUS_LABEL_PT[status]}` })
   },
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'leads', id))
+  },
+  async addTimelineEntry(leadId: string, entry: Omit<TimelineEntry, 'id' | 'createdAt'>): Promise<void> {
+    await addDoc(collection(db, 'leads', leadId, 'timeline'), { ...entry, createdAt: serverTimestamp() })
+  },
+  async getTimeline(leadId: string): Promise<TimelineEntry[]> {
+    const snap = await getDocs(collection(db, 'leads', leadId, 'timeline'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as TimelineEntry))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+  },
+  async fecharLead(lead: Lead): Promise<string> {
+    if (!lead.id) throw new Error('Lead sem id')
+    const planoCliente = asPlano(lead.planoRec || 'GROWTH')
+    const batch = writeBatch(db)
+
+    const clienteRef = doc(collection(db, 'clientes'))
+    batch.set(clienteRef, {
+      empresa: lead.empresa, contacto: lead.contacto || '', email: lead.email || '', telefone: lead.telefone || '',
+      instagram: lead.instagram || '', plano: planoCliente, mrr: lead.valorPotencial || 0, status: 'ONBOARDING',
+      servicos: SERVICOS_BASE[planoCliente], createdAt: serverTimestamp(),
+    })
+
+    const contratoRef = doc(collection(db, 'contratos'))
+    batch.set(contratoRef, {
+      leadId: lead.id, clienteId: clienteRef.id, nomeAssociado: lead.empresa,
+      plano: lead.planoRec || 'GROWTH', valor: lead.valorPotencial || 0, status: 'RASCUNHO',
+      createdAt: serverTimestamp(),
+    })
+
+    batch.update(doc(db, 'leads', lead.id), { status: 'FECHADO' as LeadStatus, updatedAt: new Date().toISOString() })
+    const timelineRef = doc(collection(db, 'leads', lead.id, 'timeline'))
+    batch.set(timelineRef, { tipo: 'ACCAO', descricao: 'Cliente fechado — conta criada', createdAt: serverTimestamp() })
+
+    await batch.commit()
+    return clienteRef.id
   },
 }
 
