@@ -142,9 +142,10 @@ function PropostasConteudo() {
 }
 
 function ModalNovaProposta({ leads, leadIdPreset, onClose, onCreated }: { leads: Lead[]; leadIdPreset: string; onClose: () => void; onCreated: (p: Proposta) => void }) {
+  const leadPreset = leads.find(l => l.id === leadIdPreset)
   const [leadId, setLeadId] = useState(leadIdPreset)
-  const [plano, setPlano] = useState<PlanoRec>('PRESENCE')
-  const [valor, setValor] = useState('')
+  const [plano, setPlano] = useState<PlanoRec>(leadPreset?.planoRec || 'PRESENCE')
+  const [valor, setValor] = useState(leadPreset?.valorPotencial ? String(leadPreset.valorPotencial) : '')
   const [canvaUrl, setCanvaUrl] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
   const [validadeAte, setValidadeAte] = useState('')
@@ -164,6 +165,7 @@ function ModalNovaProposta({ leads, leadIdPreset, onClose, onCreated }: { leads:
         validadeAte: validadeAte || undefined, notas: notas.trim() || undefined,
       }
       const id = await propostasService.create(dados)
+      if (leadId) await leadsService.updateStatus(leadId, 'PROPOSTA')
       onCreated({ id, ...dados })
     } catch (e) { console.error(e) }
     finally { setSalvando(false) }

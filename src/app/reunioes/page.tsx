@@ -192,6 +192,7 @@ function ModalNovaReuniao({ leads, clientes, leadIdPreset, onClose, onCreated }:
         objetivos: objetivos.trim() || undefined, notas: notas.trim() || undefined,
       }
       const id = await reunioesService.create(dados)
+      if (tipoAssoc === 'lead' && entidadeId) await leadsService.updateStatus(entidadeId, 'REUNIAO')
       onCreated({ id, ...dados })
     } catch (e) { console.error(e) }
     finally { setSalvando(false) }
