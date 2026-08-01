@@ -11,6 +11,59 @@ export type TarefaStatus = 'PENDENTE' | 'EM_CURSO' | 'CONCLUIDA' | 'BLOQUEADA'
 export type Frequencia = 'DIARIA' | 'SEMANAL' | 'QUINZENAL' | 'MENSAL' | 'PONTUAL'
 export type EstadoPagamento = 'PAGO' | 'AGUARDA' | 'ATRASO' | 'CANCELADO'
 
+// ─── Comercial ──────────────────────────────────────────────────────────────
+export type LeadStatus = 'NOVO' | 'QUALIFICACAO' | 'AUDITORIA' | 'REUNIAO' | 'PROPOSTA' | 'FECHADO' | 'PERDIDO'
+export type AuditoriaStatus = 'PENDENTE' | 'EM_CURSO' | 'CONCLUIDA' | 'ENVIADA'
+export type ReuniaoTipo = 'ESTRATEGICA' | 'KICKOFF' | 'ACOMPANHAMENTO' | 'RENOVACAO' | 'FOLLOWUP'
+export type ReuniaoStatus = 'AGENDADA' | 'REALIZADA' | 'CANCELADA'
+export type PropostaStatus = 'PREPARACAO' | 'ENVIADA' | 'NEGOCIACAO' | 'ACEITE' | 'RECUSADA'
+export type ContratoStatus = 'RASCUNHO' | 'ENVIADO' | 'ASSINADO' | 'CANCELADO'
+export type Origem = 'INSTAGRAM' | 'LANDING' | 'INDICACAO' | 'COLD' | 'OUTRO'
+export type PlanoRec = 'ONE' | 'PRESENCE' | 'GROWTH' | 'PERSONALIZADO'
+
+export interface HistoricoLead { status: LeadStatus; data: string }
+
+export interface Lead {
+  id?: string
+  empresa: string; contacto?: string; email?: string; telefone?: string
+  website?: string; instagram?: string
+  origem: Origem; status: LeadStatus; planoRec?: PlanoRec
+  score?: number; proximaAcao?: string; notas?: string; valorPotencial?: number
+  checklist?: string[]
+  historico?: HistoricoLead[]
+  createdAt?: Timestamp; updatedAt?: Timestamp
+}
+
+export interface Auditoria {
+  id?: string; leadId: string; leadNome: string; status: AuditoriaStatus
+  scoreGoogle?: number; scoreWebsite?: number; scoreSEO?: number; scoreRedes?: number; scoreConversao?: number
+  diagnostico?: string; planoRecomendado?: PlanoRec; argumentoVenda?: string; proximoPasso?: string; notas?: string
+  createdAt?: Timestamp
+}
+
+export interface Reuniao {
+  id?: string; leadId?: string; clienteId?: string; nomeAssociado: string
+  tipo: ReuniaoTipo; status: ReuniaoStatus; data: string; hora: string
+  duracao?: number; formato?: string; linkMeet?: string
+  objetivos?: string; dores?: string; oportunidades?: string; notas?: string
+  planoSugerido?: PlanoRec; proximoPasso?: string; checklistPos?: string[]
+  createdAt?: Timestamp
+}
+
+export interface Proposta {
+  id?: string; leadId: string; leadNome: string; plano: PlanoRec; valor: number
+  status: PropostaStatus; canvaUrl?: string; pdfUrl?: string; validadeAte?: string
+  promptIA?: string; checklist?: string[]; proximoPasso?: string; notas?: string
+  createdAt?: Timestamp; updatedAt?: Timestamp
+}
+
+export interface Contrato {
+  id?: string; clienteId?: string; leadId?: string; nomeAssociado: string
+  plano: PlanoRec; valor: number; status: ContratoStatus
+  dataInicio?: string; dataFim?: string; documentoUrl?: string; notas?: string
+  createdAt?: Timestamp
+}
+
 export interface ServicoCliente {
   id: string; nome: string; ativo: boolean
   frequencia: Frequencia; quantidade: number; unidade: string; notas?: string
@@ -525,5 +578,134 @@ export const usuariosService = {
   },
   async update(uid: string, data: Partial<Usuario>): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), data as Record<string, unknown>)
+  },
+}
+
+// ─── Comercial: services ─────────────────────────────────────────────────────
+export const leadsService = {
+  async getAll(): Promise<Lead[]> {
+    const snap = await getDocs(collection(db, 'leads'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Lead))
+  },
+  async getById(id: string): Promise<Lead | null> {
+    const snap = await getDoc(doc(db, 'leads', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Lead : null
+  },
+  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const agora = new Date().toISOString()
+    const ref = await addDoc(collection(db, 'leads'), {
+      ...data, createdAt: serverTimestamp(), updatedAt: agora,
+      historico: [{ status: data.status, data: agora }],
+    })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Lead>): Promise<void> {
+    await updateDoc(doc(db, 'leads', id), { ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>)
+  },
+  async updateStatus(id: string, status: LeadStatus): Promise<void> {
+    const agora = new Date().toISOString()
+    await updateDoc(doc(db, 'leads', id), {
+      status, updatedAt: agora,
+      historico: arrayUnion({ status, data: agora }),
+    })
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'leads', id))
+  },
+}
+
+export const auditoriasService = {
+  async getAll(): Promise<Auditoria[]> {
+    const snap = await getDocs(collection(db, 'auditorias'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Auditoria))
+  },
+  async getById(id: string): Promise<Auditoria | null> {
+    const snap = await getDoc(doc(db, 'auditorias', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Auditoria : null
+  },
+  async getByLead(leadId: string): Promise<Auditoria[]> {
+    const snap = await getDocs(collection(db, 'auditorias'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Auditoria)).filter(a => a.leadId === leadId)
+  },
+  async create(data: Omit<Auditoria, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'auditorias'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Auditoria>): Promise<void> {
+    await updateDoc(doc(db, 'auditorias', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'auditorias', id))
+  },
+}
+
+export const reunioesService = {
+  async getAll(): Promise<Reuniao[]> {
+    const snap = await getDocs(collection(db, 'reunioes'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Reuniao))
+  },
+  async getById(id: string): Promise<Reuniao | null> {
+    const snap = await getDoc(doc(db, 'reunioes', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Reuniao : null
+  },
+  async getByLead(leadId: string): Promise<Reuniao[]> {
+    const snap = await getDocs(collection(db, 'reunioes'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Reuniao)).filter(r => r.leadId === leadId)
+  },
+  async create(data: Omit<Reuniao, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'reunioes'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Reuniao>): Promise<void> {
+    await updateDoc(doc(db, 'reunioes', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'reunioes', id))
+  },
+}
+
+export const propostasService = {
+  async getAll(): Promise<Proposta[]> {
+    const snap = await getDocs(collection(db, 'propostas'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposta))
+  },
+  async getById(id: string): Promise<Proposta | null> {
+    const snap = await getDoc(doc(db, 'propostas', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Proposta : null
+  },
+  async getByLead(leadId: string): Promise<Proposta[]> {
+    const snap = await getDocs(collection(db, 'propostas'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposta)).filter(p => p.leadId === leadId)
+  },
+  async create(data: Omit<Proposta, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'propostas'), { ...data, createdAt: serverTimestamp(), updatedAt: new Date().toISOString() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Proposta>): Promise<void> {
+    await updateDoc(doc(db, 'propostas', id), { ...data, updatedAt: new Date().toISOString() } as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'propostas', id))
+  },
+}
+
+export const contratosService = {
+  async getAll(): Promise<Contrato[]> {
+    const snap = await getDocs(collection(db, 'contratos'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Contrato))
+  },
+  async getById(id: string): Promise<Contrato | null> {
+    const snap = await getDoc(doc(db, 'contratos', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Contrato : null
+  },
+  async create(data: Omit<Contrato, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'contratos'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<Contrato>): Promise<void> {
+    await updateDoc(doc(db, 'contratos', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'contratos', id))
   },
 }
