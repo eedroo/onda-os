@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Plus, ExternalLink } from 'lucide-react'
+import { Loader2, Plus, ExternalLink } from 'lucide-react'
 import {
   projetosService, tarefasService, categoriasService, clientesService,
   type Projeto, type Tarefa, type TarefaStatus, type Categoria, type Frequencia, type Cliente,
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const FREQUENCIAS: Frequencia[] = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
 const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }
@@ -145,16 +146,7 @@ export default function ProjetoPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}>
-            <ArrowLeft size={14} />
-          </button>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{projeto.nome}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{concluidas} de {tarefas.length} tarefas concluídas</div>
-          </div>
-        </div>
+      <PageHeader title={projeto.nome} subtitle={`${concluidas} de ${tarefas.length} tarefas concluídas`} onBack={() => router.back()} actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 20, fontWeight: 600, color: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--accent-blue)' }}>
@@ -168,7 +160,7 @@ export default function ProjetoPage() {
             <Plus size={13} /> Adicionar tarefa
           </button>
         </div>
-      </div>
+      } />
 
       {/* Atalhos rápidos do cliente */}
       {todosLinks.length > 0 && (

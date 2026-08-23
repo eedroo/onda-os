@@ -2,11 +2,12 @@
 
 import { Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2, Plus, Trash2, Info, RotateCcw } from 'lucide-react'
+import { Loader2, Plus, Trash2, Info, RotateCcw } from 'lucide-react'
 import {
   clientesService, projetosService, categoriasService, getTarefasPorPlano,
   type Cliente, type Categoria, type Frequencia,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const FREQUENCIAS: Frequencia[] = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
@@ -125,10 +126,7 @@ function NovoProjetoForm() {
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
-        <button onClick={() => router.back()} className="btn btn-ghost py-1 px-2"><ArrowLeft size={14} /></button>
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>Novo projeto</div>
-      </div>
+      <PageHeader title="Novo projeto" onBack={() => router.back()} />
 
       <div className="flex-1 overflow-auto p-5">
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>

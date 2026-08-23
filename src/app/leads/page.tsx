@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Users, Plus, Search, Loader2, ClipboardCheck, CalendarClock, AlertTriangle } from 'lucide-react'
 import { leadsService, reunioesService, auditoriasService, propostasService, type Lead, type LeadStatus, type Origem, type Reuniao, type Proposta } from '@/lib/db'
 import type { Timestamp } from 'firebase/firestore'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const COLUNAS: { id: LeadStatus; label: string; color: string }[] = [
   { id: 'NOVO', label: 'Novo', color: 'var(--accent-blue)' },
@@ -107,19 +108,14 @@ export default function LeadsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <Users size={18} style={{ color: 'var(--accent-blue)' }} /> Leads
+      <PageHeader title="Leads" icon={Users} actions={<>
+        <div style={{ position: 'relative' }}>
+          <Search size={12} style={{ position: 'absolute', left: 9, top: 9, color: 'var(--text-faint)' }} />
+          <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar lead..."
+            className="input" style={{ width: 180, paddingLeft: 26 }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={12} style={{ position: 'absolute', left: 9, top: 9, color: 'var(--text-faint)' }} />
-            <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar lead..."
-              className="input" style={{ width: 180, paddingLeft: 26 }} />
-          </div>
-          <Link href="/leads/novo" className="btn btn-primary"><Plus size={13} /> Novo lead</Link>
-        </div>
-      </div>
+        <Link href="/leads/novo" className="btn btn-primary"><Plus size={13} /> Novo lead</Link>
+      </>} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16, minWidth: 0 }}>
         <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>

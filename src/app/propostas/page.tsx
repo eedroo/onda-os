@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { FileText, Plus, Loader2, X, AlertTriangle } from 'lucide-react'
 import { propostasService, leadsService, type Proposta, type PropostaStatus, type PlanoRec, type Lead } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const COLUNAS: { id: PropostaStatus; label: string; color: string }[] = [
   { id: 'PREPARACAO', label: 'Preparação', color: 'var(--text-muted)' },
@@ -65,12 +66,9 @@ function PropostasConteudo() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <FileText size={18} style={{ color: 'var(--accent-blue)' }} /> Propostas
-        </div>
+      <PageHeader title="Propostas" icon={FileText} actions={
         <button onClick={() => setShowModal(true)} className="btn btn-primary"><Plus size={13} /> Nova proposta</button>
-      </div>
+      } />
 
       <div style={{ display: 'flex', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         <div style={{ flex: 1, textAlign: 'center' }}><div style={{ fontSize: 10, color: 'var(--text-faint)' }}>Pipeline total</div><div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{fmtEUR.format(totais.pipeline)}/mês</div></div>

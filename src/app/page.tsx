@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { clientesService, projetosService, tarefasService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 export default function Home() {
   const router = useRouter()
@@ -86,13 +87,7 @@ export default function Home() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
 
-      {/* Topbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>Bom dia, {primeiroNome} 👋</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, textTransform: 'capitalize' }}>{dateStr}</div>
-        </div>
-      </div>
+      <PageHeader title={`Bom dia, ${primeiroNome} 👋`} subtitle={dateStr[0].toUpperCase() + dateStr.slice(1)} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
 

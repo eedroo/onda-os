@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ClipboardCheck, Plus, Loader2, X } from 'lucide-react'
 import { auditoriasService, leadsService, type Auditoria, type AuditoriaStatus, type Lead } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const STATUS_LABEL: Record<AuditoriaStatus, { label: string; cls: string }> = {
   PENDENTE: { label: 'Pendente', cls: 'pill-gray' },
@@ -53,18 +54,13 @@ export default function AuditoriasPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <ClipboardCheck size={18} style={{ color: 'var(--accent-blue)' }} /> Auditorias
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as AuditoriaStatus | 'TODOS')} className="select" style={{ width: 150 }}>
-            <option value="TODOS">Todos os estados</option>
-            {(Object.keys(STATUS_LABEL) as AuditoriaStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s].label}</option>)}
-          </select>
-          <button onClick={() => setShowModal(true)} className="btn btn-primary"><Plus size={13} /> Nova auditoria</button>
-        </div>
-      </div>
+      <PageHeader title="Auditorias" icon={ClipboardCheck} actions={<>
+        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value as AuditoriaStatus | 'TODOS')} className="select" style={{ width: 150 }}>
+          <option value="TODOS">Todos os estados</option>
+          {(Object.keys(STATUS_LABEL) as AuditoriaStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s].label}</option>)}
+        </select>
+        <button onClick={() => setShowModal(true)} className="btn btn-primary"><Plus size={13} /> Nova auditoria</button>
+      </>} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

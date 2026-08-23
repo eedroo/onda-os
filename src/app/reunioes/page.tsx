@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Loader2, X, Clock } from 'lucide-react'
 import { reunioesService, leadsService, clientesService, type Reuniao, type ReuniaoTipo, type Lead, type Cliente } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -75,12 +76,9 @@ function ReunioesConteudo() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <CalendarDays size={18} style={{ color: 'var(--accent-blue)' }} /> Reuniões
-        </div>
+      <PageHeader title="Reuniões" icon={CalendarDays} actions={
         <button onClick={() => setShowModal(true)} className="btn btn-primary"><Plus size={13} /> Nova reunião</button>
-      </div>
+      } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 1fr', gap: 14, alignItems: 'start' }}>

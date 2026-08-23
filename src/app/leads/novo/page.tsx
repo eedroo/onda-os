@@ -2,8 +2,9 @@
 
 import { Suspense, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { leadsService, type LeadStatus, type Origem, type PlanoRec } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const ORIGENS: { id: Origem; label: string }[] = [
   { id: 'INSTAGRAM', label: 'Instagram' }, { id: 'LANDING', label: 'Landing page' },
@@ -52,10 +53,7 @@ function NovoLeadForm() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
-        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Novo lead</div>
-      </div>
+      <PageHeader title="Novo lead" onBack={() => router.back()} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         <div className="card" style={{ padding: 20, maxWidth: 620, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>

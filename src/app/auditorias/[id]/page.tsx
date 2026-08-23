@@ -3,8 +3,9 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, ExternalLink, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Loader2, ExternalLink, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { auditoriasService, leadsService, type Auditoria, type AuditoriaStatus, type PlanoRec, type Lead } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const STATUS_OPTIONS: AuditoriaStatus[] = ['PENDENTE', 'EM_CURSO', 'CONCLUIDA', 'ENVIADA']
 const PLANOS: PlanoRec[] = ['ONE', 'PRESENCE', 'GROWTH', 'PERSONALIZADO']
@@ -55,15 +56,11 @@ export default function AuditoriaDetalhePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
-          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Auditoria — {auditoria.leadNome}</div>
-        </div>
+      <PageHeader title={`Auditoria — ${auditoria.leadNome}`} onBack={() => router.back()} actions={
         <select value={auditoria.status} onChange={e => { const v = e.target.value as AuditoriaStatus; set('status', v); salvar('status', v) }} className="select" style={{ width: 140 }}>
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-      </div>
+      } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr 1fr', gap: 14, alignItems: 'start' }}>

@@ -8,6 +8,7 @@ import {
   type ClienteStatus, type ServicoCliente, type PlanoConfig, type Servico, type Categoria,
   type TarefaPerfilCliente, type Frequencia,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 type FaseSite = 'SEM_SITE' | 'EM_DESENVOLVIMENTO' | 'ENTREGUE'
 
@@ -147,10 +148,7 @@ export default function NovoClientePage() {
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
-        <button onClick={() => router.back()} className="btn btn-ghost py-1 px-2"><ArrowLeft size={14} /></button>
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>Novo cliente</div>
-      </div>
+      <PageHeader title="Novo cliente" onBack={() => router.back()} />
 
       {/* Indicador de passos */}
       <div style={{ display: 'flex', gap: 8, padding: '12px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>

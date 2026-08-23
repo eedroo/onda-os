@@ -10,6 +10,7 @@ import {
   financeiroService, clientesService,
   type Receita, type Despesa, type Cliente, type EstadoPagamento,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const META_MRR_DEFAULT = 2000
@@ -209,22 +210,17 @@ export default function FinanceiroPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <Wallet size={18} style={{ color: 'var(--accent-blue)' }} /> Financeiro
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {TABS.map(t => {
-            const Icon = t.icon
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: tab === t.id ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: tab === t.id ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: tab === t.id ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
-                <Icon size={12} /> {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <PageHeader title="Financeiro" icon={Wallet} actions={<>
+        {TABS.map(t => {
+          const Icon = t.icon
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: tab === t.id ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: tab === t.id ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: tab === t.id ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+              <Icon size={12} /> {t.label}
+            </button>
+          )
+        })}
+      </>} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
 

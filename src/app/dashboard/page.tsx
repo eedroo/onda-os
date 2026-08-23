@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { LayoutDashboard, Loader2, Users, ClipboardCheck, CalendarClock, FileText, TrendingUp } from 'lucide-react'
 import { leadsService, auditoriasService, reunioesService, propostasService, type Lead, type LeadStatus, type Reuniao } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   NOVO: 'Novo', QUALIFICACAO: 'Qualificação', AUDITORIA: 'Auditoria', REUNIAO: 'Reunião',
@@ -89,9 +90,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-        <LayoutDashboard size={18} style={{ color: 'var(--accent-blue)' }} /> Dashboard Comercial
-      </div>
+      <PageHeader title="Dashboard Comercial" icon={LayoutDashboard} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

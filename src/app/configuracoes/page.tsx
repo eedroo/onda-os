@@ -8,6 +8,7 @@ import {
   type Usuario, type PerfilRole,
 } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 type Tab = 'categorias' | 'servicos' | 'planos' | 'utilizadores'
 
@@ -69,11 +70,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <Settings size={18} style={{ color: 'var(--accent-blue)' }} /> Configurações
-        </div>
-      </div>
+      <PageHeader title="Configurações" icon={Settings} />
 
       <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
         {tabsVisiveis.map(t => (

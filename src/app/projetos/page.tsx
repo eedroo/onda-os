@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Kanban, Plus, Calendar, Loader2, Info } from 'lucide-react'
 import Link from 'next/link'
 import { projetosService, clientesService, type Projeto, type Cliente } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const COLS = [
   { id: 'PLANEAMENTO', label: 'Planeamento', color: 'var(--accent-blue)',   border: 'var(--accent-blue)' },
@@ -78,18 +79,13 @@ export default function ProjetosPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <Kanban size={18} style={{ color: 'var(--accent-blue)' }} /> Projetos
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={criarMensais} disabled={criando} className="btn btn-ghost">
-            {criando ? <Loader2 size={13} className="animate-spin" /> : <Calendar size={13} />}
-            Criar projetos do mês
-          </button>
-          <Link href="/projetos/novo" className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
-        </div>
-      </div>
+      <PageHeader title="Projetos" icon={Kanban} actions={<>
+        <button onClick={criarMensais} disabled={criando} className="btn btn-ghost">
+          {criando ? <Loader2 size={13} className="animate-spin" /> : <Calendar size={13} />}
+          Criar projetos do mês
+        </button>
+        <Link href="/projetos/novo" className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
+      </>} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border-subtle)', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>
         <span>Ativos <strong style={{ color: 'var(--accent-blue)', marginLeft: 4 }}>{projetos.filter(p => p.status !== 'CONCLUIDO').length}</strong></span>

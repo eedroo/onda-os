@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { FileSignature, Plus, Loader2, X, ExternalLink, Trash2 } from 'lucide-react'
 import { contratosService, leadsService, clientesService, type Contrato, type ContratoStatus, type PlanoRec, type Lead, type Cliente } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const STATUS_PILL: Record<ContratoStatus, { label: string; cls: string }> = {
   RASCUNHO: { label: 'Rascunho', cls: 'pill-gray' },
@@ -58,12 +59,9 @@ export default function ContratosPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <FileSignature size={18} style={{ color: 'var(--accent-blue)' }} /> Contratos
-        </div>
+      <PageHeader title="Contratos" icon={FileSignature} actions={
         <button onClick={() => setShowModal(true)} className="btn btn-primary"><Plus size={13} /> Novo contrato</button>
-      </div>
+      } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Plus, Trash2, Info, Save } from 'lucide-react'
+import { Loader2, Plus, Trash2, Info, Save } from 'lucide-react'
 import {
   clientesService, planosService, servicosService, asPlano, SERVICOS_BASE,
   type Plano, type ClienteStatus, type ServicoCliente, type PlanoConfig, type Servico,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const FREQUENCIAS = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
 
@@ -104,10 +105,7 @@ export default function EditarClientePage() {
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
-        <button onClick={() => router.back()} className="btn btn-ghost py-1 px-2"><ArrowLeft size={14} /></button>
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>Editar cliente — {form.empresa}</div>
-      </div>
+      <PageHeader title={`Editar cliente — ${form.empresa}`} onBack={() => router.back()} />
 
       <form onSubmit={onSubmit} className="flex-1 overflow-auto p-5">
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare } from 'lucide-react'
+import { Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare } from 'lucide-react'
 import Link from 'next/link'
 import {
   clientesService, projetosService, tarefasService, categoriasService,
   type Cliente, type Projeto, type Tarefa, type Categoria, type TarefaStatus,
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 function gerarIdLink() {
   return `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -133,24 +134,20 @@ export default function ClientePage() {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>
       {/* Topbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--accent-blue)' }}>
-              {cliente.empresa.slice(0,2).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{cliente.empresa}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{cliente.contacto}</div>
-            </div>
+      <PageHeader
+        title={<>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'color-mix(in srgb, var(--accent-blue) 15%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--accent-blue)' }}>
+            {cliente.empresa.slice(0,2).toUpperCase()}
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+          {cliente.empresa}
+        </>}
+        subtitle={cliente.contacto}
+        onBack={() => router.back()}
+        actions={<>
           <Link href={`/clientes/${id}/editar`} className="btn btn-ghost"><Edit size={13} /> Editar</Link>
           <Link href={`/projetos/novo?cliente=${id}`} className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
-        </div>
-      </div>
+        </>}
+      />
 
       <div className="flex-1 overflow-auto p-5">
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>

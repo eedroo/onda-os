@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import {
-  ArrowLeft, Loader2, CheckSquare, Square, ClipboardList, Users2, FileText, Plus, ExternalLink,
+  Loader2, CheckSquare, Square, ClipboardList, Users2, FileText, Plus, ExternalLink,
   ClipboardCheck, CalendarPlus, FileSignature, ThumbsUp, ThumbsDown, RotateCcw, X, Activity,
 } from 'lucide-react'
 import {
@@ -13,6 +13,7 @@ import {
   type Lead, type LeadStatus, type Origem, type PlanoRec,
   type Auditoria, type Reuniao, type Proposta, type TimelineEntry,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const ORIGENS: { id: Origem; label: string }[] = [
   { id: 'INSTAGRAM', label: 'Instagram' }, { id: 'LANDING', label: 'Landing page' },
@@ -156,14 +157,7 @@ export default function LeadDetalhePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
-          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{lead.empresa}</div>
-          <span className={`pill ${STATUS_PILL_CLS[lead.status]}`}>{STATUS_LABEL[lead.status]}</span>
-        </div>
-
-        {/* Barra de acções contextual */}
+      <PageHeader title={<>{lead.empresa} <span className={`pill ${STATUS_PILL_CLS[lead.status]}`}>{STATUS_LABEL[lead.status]}</span></>} onBack={() => router.back()} actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {lead.status === 'NOVO' && (
             <button onClick={qualificar} className="btn btn-primary"><ClipboardCheck size={13} /> Qualificar</button>
@@ -187,7 +181,7 @@ export default function LeadDetalhePage() {
             <button onClick={() => setModal('perder')} className="btn btn-ghost" style={{ color: 'var(--accent-red)' }}><ThumbsDown size={13} /> Perdemos</button>
           )}
         </div>
-      </div>
+      } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 14, alignItems: 'start' }}>

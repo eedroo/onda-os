@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { CheckSquare, Loader2 } from 'lucide-react'
 import { clientesService, tarefasService, projetosService, categoriasService, type Tarefa, type Cliente, type Categoria, type TarefaStatus, type Projeto } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 export default function TarefasPage() {
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
@@ -91,15 +92,12 @@ export default function TarefasPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 500, color: 'var(--text-primary)' }}>
-          <CheckSquare size={18} style={{ color: 'var(--accent-blue)' }} /> Tarefas
-        </div>
+      <PageHeader title="Tarefas" icon={CheckSquare} actions={
         <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)} style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
           <option value="TODOS">Todos os clientes</option>
           {clientes.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
         </select>
-      </div>
+      } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         {tarefas.length === 0 && (clienteFiltro === 'TODOS' || !projetoAlvo(clienteFiltro)) ? (

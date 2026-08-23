@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Loader2, CheckSquare, Square, Briefcase, Tag, Layers, Flag,
+  Loader2, CheckSquare, Square, Briefcase, Tag, Layers, Flag,
   Paperclip, ListChecks, History, Plus, Trash2, ExternalLink,
 } from 'lucide-react'
 import {
@@ -11,6 +11,7 @@ import {
   type Tarefa, type TarefaStatus, type Cliente, type Projeto, type Servico, type Categoria,
   type Prioridade, type Subtarefa, type Anexo,
 } from '@/lib/db'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 const STATUS_OPTIONS: { value: TarefaStatus; label: string; color: string; bg: string }[] = [
   { value: 'PENDENTE',  label: 'Pendente',  color: 'var(--text-muted)',   bg: 'var(--pill-gray-bg)' },
@@ -178,10 +179,7 @@ export default function TarefaPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
-        <button onClick={() => router.back()} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ArrowLeft size={14} /></button>
-        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>Tarefa</div>
-      </div>
+      <PageHeader title="Tarefa" onBack={() => router.back()} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
