@@ -1,18 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare } from 'lucide-react'
+import { Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import {
-  clientesService, projetosService, tarefasService, categoriasService,
-  type Cliente, type Projeto, type Tarefa, type Categoria, type TarefaStatus,
+  clientesService, projetosService, tarefasService, categoriasService, kpiValoresService,
+  KPI_CATEGORIA_INFO, formatarKPIValor, variacaoKPI,
+  type Cliente, type Projeto, type Tarefa, type Categoria, type TarefaStatus, type KPIValor, type KPICategoria,
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 function gerarIdLink() {
   return `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function nomeMesCurto(mes: number, ano: number) {
+  const s = new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'short' })
+  return s.replace('.', '').replace(/^\w/, c => c.toUpperCase())
 }
 
 const PLANO_COLOR: Record<string, string> = { ONE: 'pill-green', PRESENCE: 'pill-purple', GROWTH: 'pill-blue' }
@@ -31,6 +37,8 @@ export default function ClientePage() {
   const [loading, setLoading] = useState(true)
   const [showLinkForm, setShowLinkForm] = useState(false)
   const [novoLink, setNovoLink] = useState({ label: '', url: '' })
+  const [historico, setHistorico] = useState<{ mes: number; ano: number; valores: KPIValor[] }[]>([])
+  const [tabMetrica, setTabMetrica] = useState<KPICategoria | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -44,10 +52,24 @@ export default function ClientePage() {
       setProjetos(p)
       setTarefas(t)
       setCategoriasConfig(cats)
+      setHistorico(await kpiValoresService.getUltimos3Meses(id, p))
       setLoading(false)
     }
     load()
   }, [id])
+
+  const categoriasComDados = useMemo(() => {
+    const idsComDados = new Set(historico.flatMap(h => h.valores.map(v => v.kpiId)))
+    const ordem = Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]
+    const presentes = new Set((cliente?.kpis || []).filter(k => idsComDados.has(k.kpiId)).map(k => k.categoria))
+    return ordem.filter(c => presentes.has(c))
+  }, [cliente, historico])
+
+  useEffect(() => {
+    if (categoriasComDados.length && (!tabMetrica || !categoriasComDados.includes(tabMetrica))) {
+      setTabMetrica(categoriasComDados[0])
+    }
+  }, [categoriasComDados, tabMetrica])
 
   async function recalcularProgressoDoProjeto(tarefasAtualizadas: Tarefa[], projetoId: string) {
     const doProjeto = tarefasAtualizadas.filter(t => t.projetoId === projetoId)
@@ -296,6 +318,59 @@ export default function ClientePage() {
             <div className="card" style={{ padding: 16 }}>
               <div className="sec-title">Notas</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{cliente.notas}</div>
+            </div>
+          )}
+
+          {/* Evolução de métricas */}
+          {categoriasComDados.length > 0 && (
+            <div className="card" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div className="sec-title" style={{ marginBottom: 0 }}><TrendingUp size={12} /> Evolução de métricas</div>
+                {projetoAlvo() && (
+                  <Link href={`/projetos/${projetoAlvo()!.id}?tab=metricas`} className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}>
+                    Registar métricas
+                  </Link>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                {categoriasComDados.map(cat => (
+                  <button key={cat} onClick={() => setTabMetrica(cat)}
+                    style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: tabMetrica === cat ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: tabMetrica === cat ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: tabMetrica === cat ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+                    {KPI_CATEGORIA_INFO[cat].icon} {KPI_CATEGORIA_INFO[cat].label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(cliente.kpis || [])
+                  .filter(k => tabMetrica && k.categoria === tabMetrica && historico.some(h => h.valores.some(v => v.kpiId === k.kpiId)))
+                  .sort((a, b) => (a.isPrincipal === b.isPrincipal ? a.ordem - b.ordem : a.isPrincipal ? -1 : 1))
+                  .map(k => (
+                    <div key={k.kpiId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 140 }}>
+                        {k.isPrincipal && <Star size={11} style={{ color: 'var(--accent-amber)' }} fill="var(--accent-amber)" />}
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{k.nome}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                        {historico.map((h, i) => {
+                          const valor = h.valores.find(v => v.kpiId === k.kpiId)?.valor
+                          const anterior = i > 0 ? h.valores.find(v => v.kpiId === k.kpiId) && historico[i - 1].valores.find(v => v.kpiId === k.kpiId)?.valor : undefined
+                          const variacao = i > 0 && valor !== undefined ? variacaoKPI(valor, anterior) : null
+                          return (
+                            <span key={i}>
+                              {nomeMesCurto(h.mes, h.ano)}: <strong style={{ color: 'var(--text-secondary)' }}>{valor !== undefined ? formatarKPIValor(valor, k.unidade) : '—'}</strong>
+                              {variacao !== null && (
+                                <span style={{ color: variacao > 0 ? 'var(--accent-green)' : variacao < 0 ? 'var(--accent-red)' : 'var(--text-faint)' }}> ({variacao > 0 ? '+' : ''}{variacao}%)</span>
+                              )}
+                              {i < historico.length - 1 && <span style={{ color: 'var(--text-faint)', marginLeft: 10 }}>|</span>}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
 

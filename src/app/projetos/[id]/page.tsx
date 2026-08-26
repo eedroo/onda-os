@@ -1,14 +1,20 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Loader2, Plus, ExternalLink } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Loader2, Plus, ExternalLink, FileDown } from 'lucide-react'
 import {
-  projetosService, tarefasService, categoriasService, clientesService,
+  projetosService, tarefasService, categoriasService, clientesService, kpiValoresService,
+  KPI_CATEGORIA_INFO, variacaoKPI,
   type Projeto, type Tarefa, type TarefaStatus, type Categoria, type Frequencia, type Cliente,
+  type KPIValor, type KPICategoria, type KPIUnidade,
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { gerarRelatorioPDF } from '@/lib/gerarRelatorio'
+
+const UNIDADE_SUFIXO: Record<KPIUnidade, string> = { numero: '', percentagem: '%', estrelas: '★', euros: '€' }
 
 const FREQUENCIAS: Frequencia[] = ['DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'PONTUAL']
 const labelStyle: CSSProperties = { fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }
@@ -23,6 +29,7 @@ const LINKS_FIXOS = [
 export default function ProjetoPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [projeto, setProjeto] = useState<Projeto | null>(null)
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
@@ -31,6 +38,15 @@ export default function ProjetoPage() {
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [novaTarefa, setNovaTarefa] = useState({ titulo: '', categoria: '', frequencia: 'MENSAL' as Frequencia, dataLimite: '' })
+
+  const [tab, setTab] = useState<'tarefas' | 'metricas'>(searchParams.get('tab') === 'metricas' ? 'metricas' : 'tarefas')
+  const [kpiValores, setKpiValores] = useState<Record<string, number>>({})
+  const [kpiValoresAnteriores, setKpiValoresAnteriores] = useState<KPIValor[]>([])
+  const [showRelatorioModal, setShowRelatorioModal] = useState(false)
+  const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [proximosPassos, setProximosPassos] = useState('')
+  const [incluirTarefas, setIncluirTarefas] = useState(true)
+  const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => { load() }, [id])
 
@@ -45,9 +61,57 @@ export default function ProjetoPage() {
       setProjeto(p)
       setTarefas(t)
       setCategoriasConfig(cats)
-      if (p) setCliente(await clientesService.getById(p.clienteId))
+      if (p) {
+        setCliente(await clientesService.getById(p.clienteId))
+        const doCliente = allProjetos
+          .filter(x => x.clienteId === p.clienteId && (x.ano * 12 + x.mes) < (p.ano * 12 + p.mes))
+          .sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes))
+        const anterior = doCliente[0] || null
+        const [valoresAtuais, valoresAnteriores] = await Promise.all([
+          kpiValoresService.getByProjeto(p.id!),
+          anterior ? kpiValoresService.getByProjeto(anterior.id!) : Promise.resolve([]),
+        ])
+        setKpiValores(Object.fromEntries(valoresAtuais.map(v => [v.kpiId, v.valor])))
+        setKpiValoresAnteriores(valoresAnteriores)
+      }
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
+  }
+
+  function onChangeKpiValor(kpiId: string, valorStr: string) {
+    const valor = valorStr === '' ? 0 : Number(valorStr)
+    setKpiValores(v => ({ ...v, [kpiId]: valor }))
+    const kpiCliente = (cliente?.kpis || []).find(k => k.kpiId === kpiId)
+    if (!kpiCliente || !projeto) return
+    clearTimeout(debounceRefs.current[kpiId])
+    debounceRefs.current[kpiId] = setTimeout(() => {
+      kpiValoresService.upsert({
+        projetoId: projeto.id!, clienteId: projeto.clienteId, mes: projeto.mes, ano: projeto.ano,
+        kpiId, kpiNome: kpiCliente.nome, kpiUnidade: kpiCliente.unidade, kpiCategoria: kpiCliente.categoria,
+        valor,
+      })
+    }, 800)
+  }
+
+  async function handleGerarPDF() {
+    if (!cliente || !projeto) return
+    setGerandoPDF(true)
+    try {
+      const valoresAtuais: KPIValor[] = kpisAtivos.map(k => ({
+        projetoId: projeto.id!, clienteId: projeto.clienteId, mes: projeto.mes, ano: projeto.ano,
+        kpiId: k.kpiId, kpiNome: k.nome, kpiUnidade: k.unidade, kpiCategoria: k.categoria,
+        valor: kpiValores[k.kpiId] ?? 0,
+      }))
+      const todosProjetos = await projetosService.getByCliente(projeto.clienteId)
+      const kpiValores3Meses = await kpiValoresService.getUltimos3Meses(projeto.clienteId, todosProjetos)
+      const tarefasConcluidas = tarefas.filter(t => t.status === 'CONCLUIDA')
+      await gerarRelatorioPDF({
+        cliente, projeto, kpiValores: valoresAtuais, kpiValoresAnteriores,
+        kpiValores3Meses, tarefasConcluidas, proximosPassos, incluirTarefas,
+      })
+      setShowRelatorioModal(false)
+    } catch (e) { console.error(e) }
+    finally { setGerandoPDF(false) }
   }
 
   async function recalcularProgresso(tarefasAtualizadas: Tarefa[]) {
@@ -134,6 +198,9 @@ export default function ProjetoPage() {
   )
 
   const concluidas = tarefas.filter(t => t.status === 'CONCLUIDA').length
+  const kpisAtivos = (cliente?.kpis || []).filter(k => k.ativo).sort((a, b) => a.ordem - b.ordem)
+  const nomeMes = new Date(projeto.ano, projeto.mes - 1).toLocaleString('pt-PT', { month: 'long' })
+  const nomeProximoMes = new Date(projeto.ano, projeto.mes).toLocaleString('pt-PT', { month: 'long' })
 
   const links = cliente ? LINKS_FIXOS
     .filter(l => (cliente as unknown as Record<string, unknown>)[l.key])
@@ -156,11 +223,22 @@ export default function ProjetoPage() {
               <div style={{ height: '100%', width: `${projeto.progresso}%`, backgroundColor: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--brand)', borderRadius: 3, transition: 'width 0.3s' }} />
             </div>
           </div>
-          <button onClick={() => setShowForm(s => !s)} className="btn btn-primary">
-            <Plus size={13} /> Adicionar tarefa
-          </button>
+          {tab === 'tarefas' && (
+            <button onClick={() => setShowForm(s => !s)} className="btn btn-primary">
+              <Plus size={13} /> Adicionar tarefa
+            </button>
+          )}
         </div>
       } />
+
+      <div style={{ display: 'flex', gap: 6, padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', flexShrink: 0 }}>
+        {(['tarefas', 'metricas'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: tab === t ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: tab === t ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: tab === t ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            {t === 'tarefas' ? 'Tarefas' : 'Métricas'}
+          </button>
+        ))}
+      </div>
 
       {/* Atalhos rápidos do cliente */}
       {todosLinks.length > 0 && (
@@ -175,6 +253,7 @@ export default function ProjetoPage() {
       )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
+        {tab === 'tarefas' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
 
           {showForm && (
@@ -226,7 +305,90 @@ export default function ProjetoPage() {
           />
 
         </div>
+        )}
+
+        {tab === 'metricas' && (
+          <div style={{ maxWidth: 900 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', textTransform: 'capitalize' }}>Métricas de {nomeMes} {projeto.ano}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>Regista aqui os dados reais recolhidos no início do mês seguinte</div>
+              </div>
+              <button onClick={() => setShowRelatorioModal(true)} className="btn btn-primary" style={{ flexShrink: 0 }}>
+                <FileDown size={13} /> Gerar Relatório PDF
+              </button>
+            </div>
+
+            {!kpisAtivos.length ? (
+              <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>Este cliente ainda não tem KPIs configurados</div>
+                <Link href={`/clientes/${projeto.clienteId}/editar`} className="btn btn-ghost" style={{ fontSize: 11 }}>Configurar KPIs</Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {(Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]).map(cat => {
+                  const doCategoria = kpisAtivos.filter(k => k.categoria === cat)
+                  if (!doCategoria.length) return null
+                  return (
+                    <div key={cat} className="card" style={{ padding: 16 }}>
+                      <div className="sec-title">{KPI_CATEGORIA_INFO[cat].icon} {KPI_CATEGORIA_INFO[cat].label}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {doCategoria.map(k => {
+                          const anterior = kpiValoresAnteriores.find(v => v.kpiId === k.kpiId)?.valor
+                          const atual = kpiValores[k.kpiId] ?? 0
+                          const variacao = variacaoKPI(atual, anterior)
+                          const corVariacao = variacao === null || variacao === 0 ? 'var(--text-faint)' : variacao > 0 ? 'var(--accent-green)' : 'var(--accent-red)'
+                          const setaVariacao = variacao === null ? '—' : variacao > 0 ? '↑' : variacao < 0 ? '↓' : '—'
+                          return (
+                            <div key={k.kpiId} style={{
+                              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6,
+                              backgroundColor: 'var(--bg-input)',
+                              border: k.isPrincipal ? '1px solid var(--brand)' : '1px solid var(--border-subtle)',
+                            }}>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{k.nome}</span>
+                                {k.isPrincipal && <span className="pill pill-blue">Principal</span>}
+                              </div>
+                              <input type="number" className="input" style={{ width: 100, textAlign: 'right', flexShrink: 0 }}
+                                value={kpiValores[k.kpiId] ?? ''} onChange={e => onChangeKpiValor(k.kpiId, e.target.value)} />
+                              <span style={{ fontSize: 11, color: 'var(--text-faint)', width: 16, flexShrink: 0 }}>{UNIDADE_SUFIXO[k.unidade]}</span>
+                              <span style={{ fontSize: 11, minWidth: 46, textAlign: 'right', flexShrink: 0, color: corVariacao }}>
+                                {variacao === null ? '—' : `${setaVariacao} ${Math.abs(variacao)}%`}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {showRelatorioModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+          onClick={() => !gerandoPDF && setShowRelatorioModal(false)}>
+          <div className="card" style={{ width: 420, padding: 20 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>Gerar Relatório PDF</div>
+            <label style={{ ...labelStyle, textTransform: 'none', letterSpacing: 0 }}>Próximos passos para {nomeProximoMes}</label>
+            <textarea className="input" rows={4} value={proximosPassos} onChange={e => setProximosPassos(e.target.value)}
+              placeholder="O que vem a seguir..." style={{ resize: 'none', marginBottom: 12 }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, cursor: 'pointer' }}>
+              <input type="checkbox" checked={incluirTarefas} onChange={e => setIncluirTarefas(e.target.checked)} style={{ accentColor: 'var(--brand)', cursor: 'pointer' }} />
+              Incluir tarefas concluídas
+            </label>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowRelatorioModal(false)} disabled={gerandoPDF} className="btn btn-ghost">Cancelar</button>
+              <button type="button" onClick={handleGerarPDF} disabled={gerandoPDF} className="btn btn-primary">
+                {gerandoPDF ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />} Gerar PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

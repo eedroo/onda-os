@@ -127,6 +127,8 @@ export interface Cliente {
   // Links extra que o utilizador guarda para este cliente (além de Drive/Canva/site/WhatsApp),
   // e que também aparecem nos atalhos do cabeçalho dos projectos deste cliente.
   linksFavoritos?: LinkFavorito[]
+  // KPIs configurados para acompanhamento mensal deste cliente.
+  kpis?: KPICliente[]
 }
 
 export interface Projeto {
@@ -149,6 +151,149 @@ export interface Tarefa {
   progresso?: number; prioridade?: Prioridade
   anexos?: Anexo[]; subtarefas?: Subtarefa[]; historicoStatus?: HistoricoStatus[]
   createdAt?: Timestamp
+}
+
+// ─── KPIs ───────────────────────────────────────────────────────────────────
+export type KPIUnidade = 'numero' | 'percentagem' | 'estrelas' | 'euros'
+
+export type KPICategoria =
+  | 'comercial'
+  | 'marketing'
+  | 'google_business'
+  | 'site'
+  | 'instagram'
+  | 'seo'
+  | 'blog'
+  | 'outro'
+
+export interface KPIDefinicao {
+  id: string
+  nome: string
+  unidade: KPIUnidade
+  categoria: KPICategoria
+  descricao?: string
+}
+
+// KPI escolhido para acompanhamento de um cliente — guardado em Cliente.kpis
+export interface KPICliente {
+  kpiId: string
+  nome: string
+  unidade: KPIUnidade
+  categoria: KPICategoria
+  ativo: boolean
+  ordem: number
+  isPrincipal: boolean // apenas um pode ser true por cliente
+}
+
+// Valor mensal de um KPI, associado ao projecto (mês) em que foi registado
+export interface KPIValor {
+  id?: string
+  projetoId: string
+  clienteId: string
+  mes: number
+  ano: number
+  kpiId: string
+  kpiNome: string
+  kpiUnidade: KPIUnidade
+  kpiCategoria: KPICategoria
+  valor: number
+  createdAt?: Timestamp
+}
+
+export const KPI_CATEGORIA_INFO: Record<KPICategoria, { label: string; icon: string }> = {
+  comercial:       { label: 'Comercial',       icon: '💼' },
+  marketing:       { label: 'Marketing',       icon: '📣' },
+  google_business: { label: 'Google Business', icon: '📍' },
+  site:            { label: 'Site',            icon: '🌐' },
+  instagram:       { label: 'Instagram',       icon: '📸' },
+  seo:             { label: 'SEO',             icon: '🔍' },
+  blog:            { label: 'Blog',            icon: '✍️' },
+  outro:           { label: 'Outro',           icon: '📦' },
+}
+
+export const KPIS_BIBLIOTECA: KPIDefinicao[] = [
+  // Comercial
+  { id: 'com_faturacao',      nome: 'Faturação mensal',        unidade: 'euros',       categoria: 'comercial' },
+  { id: 'com_clientes',       nome: 'Nº de clientes',          unidade: 'numero',      categoria: 'comercial' },
+  { id: 'com_ticket',         nome: 'Ticket médio',            unidade: 'euros',       categoria: 'comercial' },
+  { id: 'com_conversao',      nome: 'Taxa de conversão',       unidade: 'percentagem', categoria: 'comercial' },
+  // Marketing
+  { id: 'mkt_leads',          nome: 'Leads gerados',           unidade: 'numero',      categoria: 'marketing' },
+  { id: 'mkt_orcamentos',     nome: 'Pedidos de orçamento',    unidade: 'numero',      categoria: 'marketing' },
+  { id: 'mkt_mensagens',      nome: 'Mensagens recebidas',     unidade: 'numero',      categoria: 'marketing' },
+  { id: 'mkt_chamadas',       nome: 'Chamadas recebidas',      unidade: 'numero',      categoria: 'marketing' },
+  // Google Business
+  { id: 'gb_visualizacoes',   nome: 'Visualizações do perfil', unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_pesquisas',       nome: 'Pesquisas',               unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_cliques',         nome: 'Cliques no perfil',       unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_rotas',           nome: 'Pedidos de rota',         unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_telefonemas',     nome: 'Telefonemas',             unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_avaliacoes',      nome: 'Avaliações — Total',      unidade: 'numero',      categoria: 'google_business' },
+  { id: 'gb_classificacao',   nome: 'Classificação média',     unidade: 'estrelas',    categoria: 'google_business' },
+  // Site
+  { id: 'site_sessoes',       nome: 'Sessões',                 unidade: 'numero',      categoria: 'site' },
+  { id: 'site_conversoes',    nome: 'Conversões',              unidade: 'numero',      categoria: 'site' },
+  { id: 'site_formularios',   nome: 'Formulários submetidos',  unidade: 'numero',      categoria: 'site' },
+  { id: 'site_ctr',           nome: 'CTR',                     unidade: 'percentagem', categoria: 'site' },
+  { id: 'site_tempo',         nome: 'Tempo médio na página',   unidade: 'numero',      categoria: 'site' },
+  // Instagram
+  { id: 'ig_alcance',         nome: 'Alcance',                 unidade: 'numero',      categoria: 'instagram' },
+  { id: 'ig_engagement',      nome: 'Engajamento',             unidade: 'percentagem', categoria: 'instagram' },
+  { id: 'ig_seguidores',      nome: 'Seguidores — Total',      unidade: 'numero',      categoria: 'instagram' },
+  { id: 'ig_seguidores_novos',nome: 'Seguidores — Novos',      unidade: 'numero',      categoria: 'instagram' },
+  { id: 'ig_posts',           nome: 'Posts publicados',        unidade: 'numero',      categoria: 'instagram' },
+  // SEO
+  { id: 'seo_palavras',       nome: 'Palavras-chave indexadas',unidade: 'numero',      categoria: 'seo' },
+  { id: 'seo_posicoes',       nome: 'Posição média Google',    unidade: 'numero',      categoria: 'seo' },
+  { id: 'seo_organico',       nome: 'Tráfego orgânico',        unidade: 'numero',      categoria: 'seo' },
+  // Blog
+  { id: 'blog_artigos',       nome: 'Artigos publicados',      unidade: 'numero',      categoria: 'blog' },
+]
+
+export const KPIS_POR_PLANO: Record<string, string[]> = {
+  ONE: [
+    'gb_visualizacoes', 'gb_pesquisas', 'gb_cliques',
+    'gb_rotas', 'gb_telefonemas', 'gb_avaliacoes', 'gb_classificacao',
+  ],
+  PRESENCE: [
+    'gb_visualizacoes', 'gb_pesquisas', 'gb_telefonemas', 'gb_classificacao',
+    'site_sessoes', 'site_conversoes', 'site_formularios',
+    'seo_posicoes', 'seo_organico',
+  ],
+  GROWTH: [
+    'gb_visualizacoes', 'gb_pesquisas', 'gb_telefonemas', 'gb_classificacao',
+    'site_sessoes', 'site_conversoes', 'site_formularios', 'site_ctr',
+    'ig_alcance', 'ig_engagement', 'ig_seguidores', 'ig_seguidores_novos', 'ig_posts',
+    'seo_posicoes', 'seo_organico', 'seo_palavras',
+    'blog_artigos',
+  ],
+}
+
+// Gera a lista de KPICliente por omissão para um plano — usada quando um
+// cliente ainda não tem `kpis` configurados.
+export function kpisPorOmissao(plano: Plano): KPICliente[] {
+  const ids = KPIS_POR_PLANO[plano] || []
+  return ids.map((kpiId, i) => {
+    const def = KPIS_BIBLIOTECA.find(k => k.id === kpiId)!
+    return {
+      kpiId, nome: def.nome, unidade: def.unidade, categoria: def.categoria,
+      ativo: true, ordem: i + 1, isPrincipal: i === 0,
+    }
+  })
+}
+
+export function formatarKPIValor(valor: number, unidade: KPIUnidade): string {
+  if (unidade === 'euros') return `${valor.toLocaleString('pt-PT')}€`
+  if (unidade === 'percentagem') return `${valor}%`
+  if (unidade === 'estrelas') return `${valor.toFixed(1)}★`
+  return valor.toLocaleString('pt-PT')
+}
+
+// Variação percentual entre o valor actual e o anterior, arredondada a inteiro.
+// null quando não há valor anterior para comparar (mostra "—" na UI).
+export function variacaoKPI(atual: number, anterior: number | undefined | null): number | null {
+  if (anterior === undefined || anterior === null || anterior === 0) return null
+  return Math.round(((atual - anterior) / Math.abs(anterior)) * 100)
 }
 
 export interface Receita {
@@ -396,6 +541,48 @@ export const tarefasService = {
   },
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'tarefas', id))
+  },
+}
+
+// ─── KPIs ───────────────────────────────────────────────────────────────────
+export const kpiValoresService = {
+  async getAll(): Promise<KPIValor[]> {
+    const snap = await getDocs(collection(db, 'kpiValores'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KPIValor))
+  },
+  async getByProjeto(projetoId: string): Promise<KPIValor[]> {
+    const snap = await getDocs(collection(db, 'kpiValores'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KPIValor)).filter(v => v.projetoId === projetoId)
+  },
+  async getByCliente(clienteId: string): Promise<KPIValor[]> {
+    const snap = await getDocs(collection(db, 'kpiValores'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KPIValor)).filter(v => v.clienteId === clienteId)
+  },
+  // Cria ou actualiza o valor deste KPI para este projecto (um valor por projetoId + kpiId)
+  async upsert(data: Omit<KPIValor, 'id' | 'createdAt'>): Promise<void> {
+    const snap = await getDocs(collection(db, 'kpiValores'))
+    const existente = snap.docs.find(d => {
+      const v = d.data() as KPIValor
+      return v.projetoId === data.projetoId && v.kpiId === data.kpiId
+    })
+    if (existente) {
+      await updateDoc(doc(db, 'kpiValores', existente.id), { ...data })
+    } else {
+      await addDoc(collection(db, 'kpiValores'), { ...data, createdAt: serverTimestamp() })
+    }
+  },
+  // Valores dos últimos 3 projectos (meses) do cliente, do mais antigo para o mais recente
+  async getUltimos3Meses(clienteId: string, projetos: Projeto[]): Promise<{ mes: number; ano: number; valores: KPIValor[] }[]> {
+    const doCliente = [...projetos]
+      .filter(p => p.clienteId === clienteId)
+      .sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes))
+    const ultimos3 = doCliente.slice(0, 3).reverse()
+    if (!ultimos3.length) return []
+    const todos = await kpiValoresService.getByCliente(clienteId)
+    return ultimos3.map(p => ({
+      mes: p.mes, ano: p.ano,
+      valores: todos.filter(v => v.projetoId === p.id),
+    }))
   },
 }
 

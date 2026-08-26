@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, Plus, Trash2, Info, Save } from 'lucide-react'
+import { Loader2, Plus, Trash2, Info, Save, Star, ChevronUp, ChevronDown, X } from 'lucide-react'
 import {
   clientesService, planosService, servicosService, asPlano, SERVICOS_BASE,
+  KPIS_BIBLIOTECA, KPI_CATEGORIA_INFO, kpisPorOmissao,
   type Plano, type ClienteStatus, type ServicoCliente, type PlanoConfig, type Servico,
+  type KPICliente, type KPICategoria,
 } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
 
@@ -37,6 +39,8 @@ export default function EditarClientePage() {
   const [servicos, setServicos] = useState<ServicoCliente[]>([])
   const [planosConfig, setPlanosConfig] = useState<PlanoConfig[]>([])
   const [servicosConfig, setServicosConfig] = useState<Servico[]>([])
+  const [kpis, setKpis] = useState<KPICliente[]>([])
+  const [showKpiSelector, setShowKpiSelector] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -56,6 +60,7 @@ export default function EditarClientePage() {
         instagram: cliente.instagram || '', notas: cliente.notas || '',
       })
       setServicos(cliente.servicos && cliente.servicos.length ? cliente.servicos : SERVICOS_BASE[cliente.plano])
+      setKpis(cliente.kpis && cliente.kpis.length ? cliente.kpis : kpisPorOmissao(cliente.plano))
       setCarregando(false)
     }
     load()
@@ -85,12 +90,48 @@ export default function EditarClientePage() {
     setServicos(s => s.filter(x => x.id !== servicoId))
   }
 
+  function toggleKpiAtivo(kpiId: string) {
+    setKpis(k => k.map(x => x.kpiId === kpiId ? { ...x, ativo: !x.ativo } : x))
+  }
+
+  function removerKpi(kpiId: string) {
+    setKpis(k => k.filter(x => x.kpiId !== kpiId))
+  }
+
+  function marcarPrincipal(kpiId: string) {
+    setKpis(k => k.map(x => ({ ...x, isPrincipal: x.kpiId === kpiId })))
+  }
+
+  function moverKpi(kpiId: string, direcao: -1 | 1) {
+    setKpis(k => {
+      const ordenados = [...k].sort((a, b) => a.ordem - b.ordem)
+      const idx = ordenados.findIndex(x => x.kpiId === kpiId)
+      const novoIdx = idx + direcao
+      if (novoIdx < 0 || novoIdx >= ordenados.length) return k
+      const tmp = ordenados[idx]
+      ordenados[idx] = ordenados[novoIdx]
+      ordenados[novoIdx] = tmp
+      return ordenados.map((x, i) => ({ ...x, ordem: i + 1 }))
+    })
+  }
+
+  function adicionarKpi(defId: string) {
+    const def = KPIS_BIBLIOTECA.find(d => d.id === defId)
+    if (!def) return
+    setKpis(k => [...k, {
+      kpiId: def.id, nome: def.nome, unidade: def.unidade, categoria: def.categoria,
+      ativo: true, ordem: k.length ? Math.max(...k.map(x => x.ordem)) + 1 : 1,
+      isPrincipal: k.length === 0,
+    }])
+    setShowKpiSelector(false)
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.empresa) return
     setLoading(true)
     try {
-      await clientesService.update(id, { ...form, servicos })
+      await clientesService.update(id, { ...form, servicos, kpis })
       router.push(`/clientes/${id}`)
     } catch (err) {
       console.error(err)
@@ -261,6 +302,79 @@ export default function EditarClientePage() {
               ))}
               {!servicos.length && (
                 <div style={{ fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', padding: '12px 0' }}>Sem serviços configurados</div>
+              )}
+            </div>
+          </div>
+
+          {/* KPIs */}
+          <div className="card p-5">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div className="sec-title" style={{ marginBottom: 0 }}>KPIs a acompanhar</div>
+              <button type="button" onClick={() => setShowKpiSelector(s => !s)} className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}>
+                <Plus size={11} /> Adicionar KPI
+              </button>
+            </div>
+
+            {showKpiSelector && (
+              <div style={{ marginBottom: 12, padding: 10, backgroundColor: 'var(--bg-input)', borderRadius: 8, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflow: 'auto' }}>
+                {(Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]).map(cat => {
+                  const disponiveis = KPIS_BIBLIOTECA.filter(d => d.categoria === cat && !kpis.some(k => k.kpiId === d.id))
+                  if (!disponiveis.length) return null
+                  return (
+                    <div key={cat}>
+                      <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                        {KPI_CATEGORIA_INFO[cat].icon} {KPI_CATEGORIA_INFO[cat].label}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {disponiveis.map(d => (
+                          <button key={d.id} type="button" onClick={() => adicionarKpi(d.id)}
+                            style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
+                            {d.nome}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+                {KPIS_BIBLIOTECA.every(d => kpis.some(k => k.kpiId === d.id)) && (
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)', textAlign: 'center', padding: '8px 0' }}>Todos os KPIs já foram adicionados</div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[...kpis].sort((a, b) => a.ordem - b.ordem).map((k, i, ordenados) => (
+                <div key={k.kpiId} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6,
+                  backgroundColor: 'var(--bg-input)', opacity: k.ativo ? 1 : 0.5,
+                  border: k.isPrincipal ? '1px solid var(--brand)' : '1px solid var(--border-subtle)',
+                }}>
+                  <input type="checkbox" checked={k.ativo} onChange={() => toggleKpiAtivo(k.kpiId)}
+                    style={{ width: 14, height: 14, flexShrink: 0, accentColor: 'var(--brand)', cursor: 'pointer' }} />
+                  <span style={{ fontSize: 13, flexShrink: 0 }}>{KPI_CATEGORIA_INFO[k.categoria].icon}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{k.nome}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{KPI_CATEGORIA_INFO[k.categoria].label}</span>
+                  <button type="button" onClick={() => marcarPrincipal(k.kpiId)} title="KPI principal"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', color: k.isPrincipal ? 'var(--accent-amber)' : 'var(--text-faint)' }}>
+                    <Star size={13} fill={k.isPrincipal ? 'var(--accent-amber)' : 'none'} />
+                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <button type="button" disabled={i === 0} onClick={() => moverKpi(k.kpiId, -1)}
+                      style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', padding: 0, color: 'var(--text-faint)', opacity: i === 0 ? 0.3 : 1 }}>
+                      <ChevronUp size={12} />
+                    </button>
+                    <button type="button" disabled={i === ordenados.length - 1} onClick={() => moverKpi(k.kpiId, 1)}
+                      style={{ background: 'none', border: 'none', cursor: i === ordenados.length - 1 ? 'default' : 'pointer', padding: 0, color: 'var(--text-faint)', opacity: i === ordenados.length - 1 ? 0.3 : 1 }}>
+                      <ChevronDown size={12} />
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => removerKpi(k.kpiId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2, display: 'flex' }}>
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+              {!kpis.length && (
+                <div style={{ fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', padding: '12px 0' }}>Sem KPIs configurados</div>
               )}
             </div>
           </div>
