@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, ExternalLink, CheckSquare, Square } from 'lucide-react'
 import { reunioesService, leadsService, clientesService, type Reuniao, type ReuniaoTipo, type ReuniaoStatus, type PlanoRec, type Lead, type Cliente } from '@/lib/db'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 const TIPOS: ReuniaoTipo[] = ['ESTRATEGICA', 'KICKOFF', 'ACOMPANHAMENTO', 'RENOVACAO', 'FOLLOWUP']
@@ -84,7 +85,7 @@ export default function ReuniaoDetalhePage() {
               </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-              <div><label style={labelStyle}>Data</label><input className="input" type="date" value={reuniao.data} onChange={e => { set('data', e.target.value); salvar('data', e.target.value) }} /></div>
+              <div><label style={labelStyle}>Data</label><DatePicker value={reuniao.data} onChange={v => { set('data', v); salvar('data', v) }} /></div>
               <div><label style={labelStyle}>Hora</label><input className="input" type="time" value={reuniao.hora} onChange={e => { set('hora', e.target.value); salvar('hora', e.target.value) }} /></div>
             </div>
             <div style={fieldStyle}><label style={labelStyle}>Duração (min)</label><input className="input" type="number" value={reuniao.duracao || ''} onChange={e => set('duracao', Number(e.target.value))} onBlur={e => salvar('duracao', Number(e.target.value))} /></div>

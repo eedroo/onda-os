@@ -11,6 +11,7 @@ import {
   type Receita, type Despesa, type Cliente, type EstadoPagamento,
 } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const META_MRR_DEFAULT = 2000
@@ -534,7 +535,7 @@ function ModalNovaReceita({ clientes, onClose, onCreated }: { clientes: Cliente[
             </div>
             <div>
               <label style={labelStyle}>Data *</label>
-              <input className="input" type="date" value={data} onChange={e => setData(e.target.value)} />
+              <DatePicker value={data} onChange={setData} />
             </div>
           </div>
 
@@ -652,7 +653,7 @@ function ModalNovaDespesa({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
             <div>
               <label style={labelStyle}>Data *</label>
-              <input className="input" type="date" value={data} onChange={e => setData(e.target.value)} />
+              <DatePicker value={data} onChange={setData} />
             </div>
           </div>
 

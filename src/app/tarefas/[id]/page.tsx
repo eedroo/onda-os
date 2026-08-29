@@ -12,6 +12,7 @@ import {
   type Prioridade, type Subtarefa, type Anexo,
 } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 const STATUS_OPTIONS: { value: TarefaStatus; label: string; color: string; bg: string }[] = [
   { value: 'PENDENTE',  label: 'Pendente',  color: 'var(--text-muted)',   bg: 'var(--pill-gray-bg)' },
@@ -269,11 +270,11 @@ export default function TarefaPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
               <div>
                 <label style={labelStyle}>Data de início</label>
-                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="input" />
+                <DatePicker value={dataInicio} onChange={setDataInicio} />
               </div>
               <div>
                 <label style={labelStyle}>Data limite</label>
-                <input type="date" value={dataLimite} onChange={e => setDataLimite(e.target.value)} className="input" />
+                <DatePicker value={dataLimite} onChange={setDataLimite} />
               </div>
             </div>
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, Plus, ExternalLink, FileDown } from 'lucide-react'
+import { Loader2, Plus, ExternalLink, FileDown, Pencil } from 'lucide-react'
 import {
   projetosService, tarefasService, categoriasService, clientesService, kpiValoresService,
   KPI_CATEGORIA_INFO, variacaoKPI,
@@ -13,6 +13,7 @@ import {
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { gerarRelatorioPDF } from '@/lib/gerarRelatorio'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 const UNIDADE_SUFIXO: Record<KPIUnidade, string> = { numero: '', percentagem: '%', estrelas: '★', euros: '€' }
 
@@ -43,6 +44,8 @@ export default function ProjetoPage() {
   const [kpiValores, setKpiValores] = useState<Record<string, number>>({})
   const [kpiValoresAnteriores, setKpiValoresAnteriores] = useState<KPIValor[]>([])
   const [showRelatorioModal, setShowRelatorioModal] = useState(false)
+  const [editandoNome, setEditandoNome] = useState(false)
+  const [nomeEditado, setNomeEditado] = useState('')
   const [gerandoPDF, setGerandoPDF] = useState(false)
   const [proximosPassos, setProximosPassos] = useState('')
   const [incluirTarefas, setIncluirTarefas] = useState(true)
@@ -91,6 +94,14 @@ export default function ProjetoPage() {
         valor,
       })
     }, 800)
+  }
+
+  async function salvarNome() {
+    const novoNome = nomeEditado.trim()
+    setEditandoNome(false)
+    if (!novoNome || !projeto || novoNome === projeto.nome) return
+    setProjeto(prev => prev ? { ...prev, nome: novoNome } : prev)
+    await projetosService.update(projeto.id!, { nome: novoNome })
   }
 
   async function handleGerarPDF() {
@@ -186,6 +197,16 @@ export default function ProjetoPage() {
     await recalcularProgresso(atualizadas)
   }
 
+  async function reordenarTarefas(idsOrdenados: string[]) {
+    setTarefas(prev => {
+      const porId = Object.fromEntries(prev.map(t => [t.id, t]))
+      const reordenadas = idsOrdenados.map((id, i) => ({ ...porId[id], ordem: i + 1 }))
+      const outras = prev.filter(t => !idsOrdenados.includes(t.id!))
+      return [...reordenadas, ...outras]
+    })
+    await tarefasService.reordenar(idsOrdenados)
+  }
+
   if (loading) return (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
       <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} />
@@ -213,7 +234,18 @@ export default function ProjetoPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
 
-      <PageHeader title={projeto.nome} subtitle={`${concluidas} de ${tarefas.length} tarefas concluídas`} onBack={() => router.back()} actions={
+      <PageHeader title={editandoNome ? (
+        <input autoFocus value={nomeEditado} onChange={e => setNomeEditado(e.target.value)}
+          onBlur={salvarNome}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditandoNome(false) }}
+          className="input" style={{ fontSize: 19, fontWeight: 600, padding: '2px 8px', width: 340 }} />
+      ) : (
+        <span onClick={() => { setNomeEditado(projeto.nome); setEditandoNome(true) }}
+          style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }} title="Clicar para renomear">
+          {projeto.nome}
+          <Pencil size={13} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
+        </span>
+      )} subtitle={`${concluidas} de ${tarefas.length} tarefas concluídas`} onBack={() => router.back()} actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 20, fontWeight: 600, color: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--accent-blue)' }}>
@@ -279,7 +311,7 @@ export default function ProjetoPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Data limite</label>
-                  <input className="input" type="date" value={novaTarefa.dataLimite} onChange={e => setNovaTarefa(f => ({ ...f, dataLimite: e.target.value }))} />
+                  <DatePicker value={novaTarefa.dataLimite} onChange={v => setNovaTarefa(f => ({ ...f, dataLimite: v }))} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -300,6 +332,7 @@ export default function ProjetoPage() {
             onUpdateDataLimite={updateDataLimite}
             onRemover={removerTarefa}
             onCriar={criarTarefaInline}
+            onReordenar={reordenarTarefas}
             mesInicial={projeto.mes}
             anoInicial={projeto.ano}
           />

@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { FileSignature, Plus, Loader2, X, ExternalLink, Trash2 } from 'lucide-react'
 import { contratosService, leadsService, clientesService, type Contrato, type ContratoStatus, type PlanoRec, type Lead, type Cliente } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 const STATUS_PILL: Record<ContratoStatus, { label: string; cls: string }> = {
   RASCUNHO: { label: 'Rascunho', cls: 'pill-gray' },
@@ -169,8 +170,8 @@ function ModalNovoContrato({ leads, clientes, onClose, onCreated }: { leads: Lea
             <div><label style={labelStyle}>Valor mensal (€) *</label><input className="input" type="number" min="0" step="0.01" value={valor} onChange={e => setValor(e.target.value)} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div><label style={labelStyle}>Data início</label><input className="input" type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} /></div>
-            <div><label style={labelStyle}>Data fim</label><input className="input" type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
+            <div><label style={labelStyle}>Data início</label><DatePicker value={dataInicio} onChange={setDataInicio} /></div>
+            <div><label style={labelStyle}>Data fim</label><DatePicker value={dataFim} onChange={setDataFim} /></div>
           </div>
           <div><label style={labelStyle}>Link do documento</label><input className="input" value={documentoUrl} onChange={e => setDocumentoUrl(e.target.value)} placeholder="https://..." /></div>
           <div><label style={labelStyle}>Notas</label><textarea className="input" rows={2} value={notas} onChange={e => setNotas(e.target.value)} style={{ resize: 'vertical' }} /></div>

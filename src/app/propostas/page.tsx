@@ -6,6 +6,11 @@ import Link from 'next/link'
 import { FileText, Plus, Loader2, X, AlertTriangle } from 'lucide-react'
 import { propostasService, leadsService, type Proposta, type PropostaStatus, type PlanoRec, type Lead } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { DndContext, DragOverlay } from '@dnd-kit/core'
+import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
+import { SortableItem } from '@/components/dnd/SortableItem'
+import { DroppableColumn } from '@/components/dnd/DroppableColumn'
 
 const COLUNAS: { id: PropostaStatus; label: string; color: string }[] = [
   { id: 'PREPARACAO', label: 'Preparação', color: 'var(--text-muted)' },
@@ -29,8 +34,6 @@ function PropostasConteudo() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(searchParams.get('novo') === '1')
-  const [arrastandoId, setArrastandoId] = useState<string | null>(null)
-  const [colunaSobre, setColunaSobre] = useState<PropostaStatus | null>(null)
   const leadIdPreset = searchParams.get('leadId') || ''
 
   useEffect(() => { load() }, [])
@@ -62,6 +65,35 @@ function PropostasConteudo() {
     return { pipeline, negociacao, ganhasMes, perdidas }
   }, [propostas, chaveMesAtual])
 
+  const colunas = useMemo(() => COLUNAS.map(c => c.id), [])
+  const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Proposta>({
+    itens: propostas, colunas,
+    getId: p => p.id!,
+    getColuna: p => p.status,
+    onMudarColuna: (id, novoStatus) => moverStatus(id, novoStatus as PropostaStatus),
+  })
+  const propostaAtiva = activeId ? propostas.find(p => p.id === activeId) : null
+
+  function renderCartao(p: Proposta) {
+    const dias = diasDesde(p.updatedAt as unknown as string)
+    const semResposta = p.status === 'ENVIADA' && dias !== null && dias > 7
+    return (
+      <Link href={`/propostas/${p.id}`} style={{ textDecoration: 'none' }}>
+        <div className="card" style={{ padding: 10, borderLeft: semResposta ? '2px solid var(--accent-red)' : undefined }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>{p.leadNome}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{p.plano}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent-green)', fontVariantNumeric: 'tabular-nums' }}>{fmtEUR.format(p.valor)}/mês</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{dias !== null ? `${dias}d` : ''}</span>
+            {semResposta && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--accent-red)' }}><AlertTriangle size={10} /> Sem resposta</span>}
+          </div>
+        </div>
+      </Link>
+    )
+  }
+
   if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
 
   return (
@@ -78,60 +110,35 @@ function PropostasConteudo() {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16, minWidth: 0 }}>
-        <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
-          {COLUNAS.map(col => {
-            const itens = propostas.filter(p => p.status === col.id)
-            const emFoco = colunaSobre === col.id
-            return (
-              <div key={col.id} style={{ width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
-                onDragOver={e => { e.preventDefault(); if (arrastandoId) setColunaSobre(col.id) }}
-                onDragLeave={() => setColunaSobre(c => c === col.id ? null : c)}
-                onDrop={e => {
-                  e.preventDefault()
-                  setColunaSobre(null)
-                  const id = arrastandoId
-                  setArrastandoId(null)
-                  if (!id) return
-                  const p = propostas.find(x => x.id === id)
-                  if (p && p.status !== col.id) moverStatus(id, col.id)
-                }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', border: emFoco ? '1px dashed var(--brand)' : '1px solid var(--border-subtle)', borderTop: `2px solid ${col.color}`, borderRadius: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
-                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{itens.length}</span>
-                </div>
-
-                {itens.map(p => {
-                  const dias = diasDesde(p.updatedAt as unknown as string)
-                  const semResposta = p.status === 'ENVIADA' && dias !== null && dias > 7
-                  return (
-                    <Link key={p.id} href={`/propostas/${p.id}`} style={{ textDecoration: 'none' }}>
-                      <div className="card"
-                        draggable
-                        onDragStart={() => setArrastandoId(p.id!)}
-                        onDragEnd={() => { setArrastandoId(null); setColunaSobre(null) }}
-                        style={{ padding: 10, cursor: 'grab', opacity: arrastandoId === p.id ? 0.4 : 1, borderLeft: semResposta ? '2px solid var(--accent-red)' : undefined }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>{p.leadNome}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{p.plano}</span>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent-green)', fontVariantNumeric: 'tabular-nums' }}>{fmtEUR.format(p.valor)}/mês</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{dias !== null ? `${dias}d` : ''}</span>
-                          {semResposta && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--accent-red)' }}><AlertTriangle size={10} /> Sem resposta</span>}
-                        </div>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+          <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
+            {COLUNAS.map(col => {
+              const itens = grupos[col.id] || []
+              return (
+                <DroppableColumn key={col.id} id={col.id} items={itens.map(p => p.id!)}>
+                  {isOver => (
+                    <div style={{ width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', borderRadius: 8, borderTop: `2px solid ${col.color}`, borderRight: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`, borderBottom: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`, borderLeft: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}` }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{itens.length}</span>
                       </div>
-                    </Link>
-                  )
-                })}
 
-                <Link href={`/propostas/novo?status=${col.id}`} onClick={e => { e.preventDefault(); setShowModal(true) }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 10px', border: '1px dashed var(--border-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-faint)', textDecoration: 'none' }}>
-                  <Plus size={12} /> Adicionar
-                </Link>
-              </div>
-            )
-          })}
-        </div>
+                      {itens.map(p => (
+                        <SortableItem key={p.id} id={p.id!}>{renderCartao(p)}</SortableItem>
+                      ))}
+
+                      <Link href={`/propostas/novo?status=${col.id}`} onClick={e => { e.preventDefault(); setShowModal(true) }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 10px', border: '1px dashed var(--border-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-faint)', textDecoration: 'none' }}>
+                        <Plus size={12} /> Adicionar
+                      </Link>
+                    </div>
+                  )}
+                </DroppableColumn>
+              )
+            })}
+          </div>
+          <DragOverlay>{propostaAtiva ? <div style={{ width: 230 }}>{renderCartao(propostaAtiva)}</div> : null}</DragOverlay>
+        </DndContext>
       </div>
 
       {showModal && <ModalNovaProposta leads={leads} leadIdPreset={leadIdPreset} onClose={() => setShowModal(false)} onCreated={handleCriada} />}
@@ -195,7 +202,7 @@ function ModalNovaProposta({ leads, leadIdPreset, onClose, onCreated }: { leads:
           </div>
           <div><label style={labelStyle}>Link Canva</label><input className="input" value={canvaUrl} onChange={e => setCanvaUrl(e.target.value)} placeholder="https://canva.com/..." /></div>
           <div><label style={labelStyle}>Link PDF</label><input className="input" value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="https://..." /></div>
-          <div><label style={labelStyle}>Válida até</label><input className="input" type="date" value={validadeAte} onChange={e => setValidadeAte(e.target.value)} /></div>
+          <div><label style={labelStyle}>Válida até</label><DatePicker value={validadeAte} onChange={setValidadeAte} /></div>
           <div><label style={labelStyle}>Notas</label><textarea className="input" rows={2} value={notas} onChange={e => setNotas(e.target.value)} style={{ resize: 'vertical' }} /></div>
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>

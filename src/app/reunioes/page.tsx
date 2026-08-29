@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Loader2, X, Clock } from 'lucide-react'
 import { reunioesService, leadsService, clientesService, type Reuniao, type ReuniaoTipo, type Lead, type Cliente } from '@/lib/db'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -226,7 +227,7 @@ function ModalNovaReuniao({ leads, clientes, leadIdPreset, onClose, onCreated }:
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            <div><label style={labelStyle}>Data *</label><input className="input" type="date" value={data} onChange={e => setData(e.target.value)} /></div>
+            <div><label style={labelStyle}>Data *</label><DatePicker value={data} onChange={setData} /></div>
             <div><label style={labelStyle}>Hora *</label><input className="input" type="time" value={hora} onChange={e => setHora(e.target.value)} /></div>
             <div><label style={labelStyle}>Duração (min)</label><input className="input" type="number" min="0" step="5" value={duracao} onChange={e => setDuracao(Number(e.target.value))} /></div>
           </div>

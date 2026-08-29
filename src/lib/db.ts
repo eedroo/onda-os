@@ -542,6 +542,13 @@ export const tarefasService = {
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'tarefas', id))
   },
+  // Persiste a nova ordem de um conjunto de tarefas (ex: depois de um
+  // reordenar por drag-and-drop dentro de uma coluna do kanban).
+  async reordenar(idsOrdenados: string[]): Promise<void> {
+    const batch = writeBatch(db)
+    idsOrdenados.forEach((id, i) => batch.update(doc(db, 'tarefas', id), { ordem: i + 1 }))
+    await batch.commit()
+  },
 }
 
 // ─── KPIs ───────────────────────────────────────────────────────────────────
