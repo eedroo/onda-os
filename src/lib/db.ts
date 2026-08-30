@@ -134,6 +134,9 @@ export interface Cliente {
 export interface Projeto {
   id?: string; clienteId: string; clienteNome: string; clientePlano: Plano
   nome: string; mes: number; ano: number; status: ProjectStatus; progresso: number
+  // Ordem dentro da coluna de status no kanban de projectos (drag-and-drop).
+  // Projectos antigos sem este campo caem no fim da coluna.
+  ordem?: number
   notas?: string; createdAt?: Timestamp
 }
 
@@ -495,6 +498,12 @@ export const projetosService = {
   },
   async update(id: string, data: Partial<Projeto>): Promise<void> {
     await updateDoc(doc(db, 'projetos', id), data as Record<string, unknown>)
+  },
+  // Persiste a nova ordem de um conjunto de projectos (drag-and-drop no kanban).
+  async reordenar(idsOrdenados: string[]): Promise<void> {
+    const batch = writeBatch(db)
+    idsOrdenados.forEach((id, i) => batch.update(doc(db, 'projetos', id), { ordem: i + 1 }))
+    await batch.commit()
   },
 }
 

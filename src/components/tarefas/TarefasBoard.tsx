@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight, Plus, Sparkle } from 'lucide-react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
 import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
@@ -15,6 +15,12 @@ interface NovaTarefaDados { titulo: string; status: TarefaStatus; categoria: str
 export const CATEGORIA_EMOJI: Record<string, string> = {
   'Google Business': '📍', 'SEO': '🔍', 'Site': '🌐',
   'Blog': '✍️', 'Relatório': '📊', 'Estratégia': '🎯',
+}
+
+// Estrela de 4 pontas — só aparece nas tarefas de prioridade alta/urgente,
+// como acento visual rápido de reconhecer no board.
+const PRIORIDADE_COR: Partial<Record<string, string>> = {
+  ALTA: 'var(--accent-amber)', URGENTE: 'var(--accent-red)',
 }
 
 export const STATUS_OPTIONS: { value: TarefaStatus; label: string; color: string; bg: string }[] = [
@@ -95,6 +101,7 @@ export default function TarefasBoard({
 
   function renderCartao(tarefa: Tarefa, mostrarStatus: boolean) {
     const statusInfo = STATUS_OPTIONS.find(s => s.value === tarefa.status)
+    const corPrioridade = tarefa.prioridade ? PRIORIDADE_COR[tarefa.prioridade] : undefined
     return (
       <div className="card"
         style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}
@@ -107,12 +114,22 @@ export default function TarefasBoard({
           <Link href={`/tarefas/${tarefa.id}`} style={{ flex: 1, fontSize: 12, lineHeight: 1.3, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
             {tarefa.titulo}
           </Link>
+          {corPrioridade && (
+            <span title={`Prioridade ${tarefa.prioridade?.toLowerCase()}`} style={{ display: 'flex', flexShrink: 0, marginTop: 1 }}>
+              <Sparkle size={12} style={{ color: corPrioridade }} fill={corPrioridade} />
+            </span>
+          )}
           {onRemover && (
             <button onClick={() => onRemover(tarefa.id!)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 0, flexShrink: 0 }}>
               <Trash2 size={11} />
             </button>
           )}
         </div>
+        {typeof tarefa.progresso === 'number' && (
+          <div style={{ height: 3, backgroundColor: 'var(--border-subtle)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${tarefa.progresso}%`, backgroundColor: tarefa.progresso >= 100 ? 'var(--accent-green)' : 'var(--brand)', borderRadius: 2, transition: 'width 0.2s' }} />
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{CATEGORIA_EMOJI[tarefa.categoria] || '📌'} {tarefa.categoria}</span>
           {clienteNomePorId && (

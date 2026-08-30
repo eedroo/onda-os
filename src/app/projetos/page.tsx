@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Kanban, Plus, Calendar, Loader2, Info } from 'lucide-react'
 import Link from 'next/link'
-import { projetosService, clientesService, type Projeto, type Cliente } from '@/lib/db'
+import { projetosService, clientesService, type Projeto, type Cliente, type ProjectStatus } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DndContext, DragOverlay } from '@dnd-kit/core'
+import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
+import { SortableItem } from '@/components/dnd/SortableItem'
+import { DroppableColumn } from '@/components/dnd/DroppableColumn'
 
-const COLS = [
+const COLS: { id: ProjectStatus; label: string; color: string; border: string }[] = [
   { id: 'PLANEAMENTO', label: 'Planeamento', color: 'var(--accent-blue)',   border: 'var(--accent-blue)' },
   { id: 'EXECUCAO',    label: 'Execução',    color: 'var(--accent-amber)',  border: 'var(--accent-amber)' },
   { id: 'APROVACAO',   label: 'Aprovação',   color: '#fb923c',              border: '#fb923c' },
@@ -30,13 +34,32 @@ export default function ProjetosPage() {
   async function load() {
     try {
       const [p, c] = await Promise.all([projetosService.getAll(), clientesService.getAll()])
-      setProjetos(p)
+      setProjetos(ordenarProjetos(p))
       setClientes(c)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
+  }
+
+  function ordenarProjetos(lista: Projeto[]): Projeto[] {
+    return [...lista].sort((a, b) => (a.ordem ?? Infinity) - (b.ordem ?? Infinity))
+  }
+
+  async function moverStatus(id: string, status: ProjectStatus) {
+    setProjetos(prev => prev.map(p => p.id === id ? { ...p, status } : p))
+    await projetosService.update(id, { status })
+  }
+
+  async function reordenarProjetos(idsOrdenados: string[]) {
+    setProjetos(prev => {
+      const porId = Object.fromEntries(prev.map(p => [p.id, p]))
+      const reordenados = idsOrdenados.map((id, i) => ({ ...porId[id], ordem: i + 1 }))
+      const outros = prev.filter(p => !idsOrdenados.includes(p.id!))
+      return [...reordenados, ...outros]
+    })
+    await projetosService.reordenar(idsOrdenados)
   }
 
   async function criarMensais() {
@@ -69,6 +92,38 @@ export default function ProjetosPage() {
     } finally {
       setCriando(false)
     }
+  }
+
+  const colunas = useMemo(() => COLS.map(c => c.id), [])
+  const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Projeto>({
+    itens: projetos, colunas,
+    getId: p => p.id!,
+    getColuna: p => p.status,
+    onMudarColuna: (id, novoStatus) => moverStatus(id, novoStatus as ProjectStatus),
+    onReordenar: (_coluna, ids) => reordenarProjetos(ids),
+  })
+  const projetoAtivo = activeId ? projetos.find(p => p.id === activeId) : null
+
+  function renderCartao(p: Projeto) {
+    return (
+      <Link href={`/projetos/${p.id}`} style={{ textDecoration: 'none' }}>
+        <div className="card" style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, marginBottom: 8 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{p.nome}</div>
+            <span className={`pill ${PLANO_COLOR[p.clientePlano]}`} style={{ fontSize: 9, flexShrink: 0 }}>{p.clientePlano}</span>
+          </div>
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-faint)', marginBottom: 4 }}>
+              <span>Progresso</span><span>{p.progresso}%</span>
+            </div>
+            <div style={{ height: 3, backgroundColor: 'var(--border-subtle)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${p.progresso}%`, backgroundColor: 'var(--brand)', borderRadius: 2 }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--accent-blue)', textAlign: 'right', marginTop: 4 }}>Ver tarefas →</div>
+        </div>
+      </Link>
+    )
   }
 
   if (loading) return (
@@ -109,40 +164,39 @@ export default function ProjetosPage() {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 10, padding: 16, overflowX: 'auto', flex: 1, alignItems: 'flex-start' }}>
-          {COLS.map(col => {
-            const items = projetos.filter(p => p.status === col.id)
-            return (
-              <div key={col.id} style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: `2px solid ${col.border}` }}>
-                  <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
-                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
-                </div>
-                {items.map(p => (
-                  <Link key={p.id} href={`/projetos/${p.id}`} style={{ textDecoration: 'none' }}>
-                    <div className="card" style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, marginBottom: 8 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{p.nome}</div>
-                        <span className={`pill ${PLANO_COLOR[p.clientePlano]}`} style={{ fontSize: 9, flexShrink: 0 }}>{p.clientePlano}</span>
-                      </div>
-                      <div style={{ marginBottom: 4 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-faint)', marginBottom: 4 }}>
-                          <span>Progresso</span><span>{p.progresso}%</span>
+        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              {COLS.map(col => {
+                const items = grupos[col.id] || []
+                return (
+                  <DroppableColumn key={col.id} id={col.id} items={items.map(p => p.id!)}>
+                    {isOver => (
+                      <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div className="card" style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px',
+                          borderTop: `2px solid ${col.border}`,
+                          borderRight: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`,
+                          borderBottom: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`,
+                          borderLeft: `1px ${isOver ? 'dashed' : 'solid'} ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`,
+                        }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: col.color }}>{col.label}</span>
+                          <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
                         </div>
-                        <div style={{ height: 3, backgroundColor: 'var(--border-subtle)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${p.progresso}%`, backgroundColor: 'var(--brand)', borderRadius: 2 }} />
-                        </div>
+                        {items.map(p => (
+                          <SortableItem key={p.id} id={p.id!}>{renderCartao(p)}</SortableItem>
+                        ))}
+                        {items.length === 0 && (
+                          <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: isOver ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{isOver ? 'Largar aqui' : 'Vazio'}</div>
+                        )}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--accent-blue)', textAlign: 'right', marginTop: 4 }}>Ver tarefas →</div>
-                    </div>
-                  </Link>
-                ))}
-                {items.length === 0 && (
-                  <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', border: '1px dashed var(--border-subtle)', borderRadius: 8 }}>Vazio</div>
-                )}
-              </div>
-            )
-          })}
+                    )}
+                  </DroppableColumn>
+                )
+              })}
+            </div>
+            <DragOverlay>{projetoAtivo ? <div style={{ width: 220 }}>{renderCartao(projetoAtivo)}</div> : null}</DragOverlay>
+          </DndContext>
         </div>
       )}
     </div>
