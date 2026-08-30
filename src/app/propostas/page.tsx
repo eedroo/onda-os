@@ -178,7 +178,7 @@ function ModalNovaProposta({ leads, leadIdPreset, onClose, onCreated }: { leads:
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 420, maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(420px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Nova proposta</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
@@ -191,7 +191,7 @@ function ModalNovaProposta({ leads, leadIdPreset, onClose, onCreated }: { leads:
               {leads.map(l => <option key={l.id} value={l.id}>{l.empresa}</option>)}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Plano</label>
               <select className="select" value={plano} onChange={e => setPlano(e.target.value as PlanoRec)}>

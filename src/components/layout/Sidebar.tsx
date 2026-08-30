@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { useAuth } from '@/lib/auth'
@@ -68,7 +68,7 @@ function FooterRow({ icon: Icon, label, onClick }: { icon: any; label: string; o
   )
 }
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen?: boolean; onCloseMobile?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, toggle } = useTheme()
@@ -80,59 +80,68 @@ export function Sidebar() {
   }
 
   return (
-    <aside style={{
-      width: 216,
-      flexShrink: 0,
-      backgroundColor: 'var(--sidebar-bg)',
-      borderRight: '1px solid var(--sidebar-border)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflowY: 'auto',
-    }}>
-      {/* Logo */}
-      <div style={{ padding: '22px 16px 16px' }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Onda OS</div>
-        <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 2 }}>
-          {perfil?.role === 'ADMIN' ? 'Administrador' : 'Utilizador'}
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '4px 10px' }}>
-        {nav.map((section) => (
-          <div key={section.label} style={{ marginBottom: 14 }}>
-            <div style={{ padding: '0 10px 6px', fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {section.label}
+    <>
+      {mobileOpen && <div className="onda-sidebar-backdrop" onClick={onCloseMobile} />}
+      <aside className={`onda-sidebar${mobileOpen ? ' open' : ''}`} style={{
+        width: 216,
+        flexShrink: 0,
+        backgroundColor: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--sidebar-border)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflowY: 'auto',
+      }}>
+        {/* Logo */}
+        <div style={{ padding: '22px 16px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Onda OS</div>
+            <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 2 }}>
+              {perfil?.role === 'ADMIN' ? 'Administrador' : 'Utilizador'}
             </div>
-            {section.items.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-              const Icon = item.icon
-              return (
-                <Link key={item.href} href={item.href} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 12px', marginBottom: 2, fontSize: 13.5, fontWeight: isActive ? 500 : 400,
-                  textDecoration: 'none', borderRadius: 10,
-                  color: isActive ? 'var(--sidebar-active-text)' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
-                  transition: 'background-color 0.15s, color 0.15s',
-                }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)' }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
-                >
-                  <Icon size={16} style={{ flexShrink: 0 }} />
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
           </div>
-        ))}
-      </nav>
+          <button onClick={onCloseMobile} className="onda-sidebar-close" aria-label="Fechar menu"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2 }}>
+            <X size={18} />
+          </button>
+        </div>
 
-      {/* Footer */}
-      <div style={{ padding: '10px', borderTop: '1px solid var(--sidebar-border)' }}>
-        <FooterRow icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Tema claro' : 'Tema escuro'} onClick={toggle} />
-        <FooterRow icon={LogOut} label="Sair" onClick={onLogout} />
-      </div>
-    </aside>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '4px 10px' }}>
+          {nav.map((section) => (
+            <div key={section.label} style={{ marginBottom: 14 }}>
+              <div style={{ padding: '0 10px 6px', fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                {section.label}
+              </div>
+              {section.items.map((item) => {
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+                const Icon = item.icon
+                return (
+                  <Link key={item.href} href={item.href} onClick={onCloseMobile} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '9px 12px', marginBottom: 2, fontSize: 13.5, fontWeight: isActive ? 500 : 400,
+                    textDecoration: 'none', borderRadius: 10,
+                    color: isActive ? 'var(--sidebar-active-text)' : 'var(--text-secondary)',
+                    backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
+                    transition: 'background-color 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)' }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
+                  >
+                    <Icon size={16} style={{ flexShrink: 0 }} />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div style={{ padding: '10px', borderTop: '1px solid var(--sidebar-border)' }}>
+          <FooterRow icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Tema claro' : 'Tema escuro'} onClick={toggle} />
+          <FooterRow icon={LogOut} label="Sair" onClick={onLogout} />
+        </div>
+      </aside>
+    </>
   )
 }

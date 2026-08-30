@@ -95,7 +95,7 @@ export default function DashboardPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
             <div className="card" style={{ padding: '12px 14px', borderTop: '2px solid var(--accent-blue)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}><Users size={11} /> Leads activos</div>
               <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--accent-blue)', fontVariantNumeric: 'tabular-nums' }}>{leadsAtivos}</div>
@@ -136,7 +136,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, alignItems: 'start' }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, alignItems: 'start' }}>
             <div className="card" style={{ padding: 16, minWidth: 0 }}>
               <div className="sec-title">Leads recentes</div>
               <div style={{ overflowX: 'auto' }}>

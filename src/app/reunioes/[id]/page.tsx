@@ -68,7 +68,7 @@ export default function ReuniaoDetalhePage() {
       } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 14, alignItems: 'start' }}>
+        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 14, alignItems: 'start' }}>
 
           {/* Esquerda */}
           <div className="card" style={{ padding: 16 }}>
@@ -84,7 +84,7 @@ export default function ReuniaoDetalhePage() {
                 {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               <div><label style={labelStyle}>Data</label><DatePicker value={reuniao.data} onChange={v => { set('data', v); salvar('data', v) }} /></div>
               <div><label style={labelStyle}>Hora</label><input className="input" type="time" value={reuniao.hora} onChange={e => { set('hora', e.target.value); salvar('hora', e.target.value) }} /></div>
             </div>

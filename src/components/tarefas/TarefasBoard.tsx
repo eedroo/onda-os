@@ -376,13 +376,15 @@ export default function TarefasBoard({
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', minWidth: 120, textAlign: 'center' }}>{MESES[mes - 1]} {ano}</div>
             <button onClick={() => { if (mes === 12) { setMes(1); setAno(a => a + 1) } else setMes(m => m + 1) }} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ChevronRight size={13} /></button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-            {DIAS_SEMANA.map(d => (
-              <div key={d} style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>
-            ))}
-            {celulas.map((dia, i) => (
-              dia ? <DiaCalendario key={i} dia={dia} /> : <div key={i} style={{ minHeight: 74 }} />
-            ))}
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, minWidth: 560 }}>
+              {DIAS_SEMANA.map(d => (
+                <div key={d} style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>
+              ))}
+              {celulas.map((dia, i) => (
+                dia ? <DiaCalendario key={i} dia={dia} /> : <div key={i} style={{ minHeight: 74 }} />
+              ))}
+            </div>
           </div>
 
           {semData.length > 0 && (

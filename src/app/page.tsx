@@ -92,7 +92,7 @@ export default function Home() {
       <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
           {kpis.map((k) => {
             const Icon = k.icon
             return (
@@ -108,7 +108,7 @@ export default function Home() {
         </div>
 
         {/* Tarefas + Alertas */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
           {/* Tarefas de hoje */}
           <div className="card" style={{ padding: 16 }}>
@@ -184,7 +184,7 @@ export default function Home() {
             <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
               Projetos do mês
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
               {projetosAtivos.slice(0,6).map(p => (
                 <Link key={p.id} href={`/projetos/${p.id}`} style={{ textDecoration: 'none' }}>
                   <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-input)', borderRadius: 8, border: '1px solid var(--border-subtle)', transition: 'border-color 0.15s', cursor: 'pointer' }}>
@@ -207,7 +207,7 @@ export default function Home() {
           <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
             <Plus size={12} /> Atalhos rápidos
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
             {shortcuts.map(s => (
               <Link key={s.href} href={s.href} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, transition: 'border-color 0.15s' }}>
                 <span style={{ fontSize: 12, fontWeight: 500, color: s.color }}>{s.label}</span>

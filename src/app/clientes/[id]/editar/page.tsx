@@ -154,7 +154,7 @@ export default function EditarClientePage() {
           {/* Dados básicos */}
           <div className="card p-5">
             <div className="sec-title">Dados básicos</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Empresa *</label>
                 <input className="input" value={form.empresa} onChange={e => setForm(f => ({...f, empresa: e.target.value}))} required placeholder="Nome da empresa" />
@@ -184,7 +184,7 @@ export default function EditarClientePage() {
             {planosConfig.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '8px 0 16px' }}>Sem planos configurados — cria planos em Configurações.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8, marginBottom: 16 }}>
                 {planosConfig.map(p => (
                   <button
                     key={p.id} type="button"
@@ -203,7 +203,7 @@ export default function EditarClientePage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
                   MRR — Valor mensal (€)
@@ -232,7 +232,7 @@ export default function EditarClientePage() {
                   — define quais tarefas são geradas mensalmente
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
                 {FASES_SITE.map(f => (
                   <button
                     key={f.id} type="button"
@@ -382,7 +382,7 @@ export default function EditarClientePage() {
           {/* Links */}
           <div className="card p-5">
             <div className="sec-title">Links</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 { key: 'driveUrl',    label: 'Google Drive' },
                 { key: 'canvaUrl',    label: 'Canva' },

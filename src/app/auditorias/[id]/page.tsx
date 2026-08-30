@@ -63,7 +63,7 @@ export default function AuditoriaDetalhePage() {
       } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr 1fr', gap: 14, alignItems: 'start' }}>
+        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr 1fr', gap: 14, alignItems: 'start' }}>
 
           {/* Esquerda */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

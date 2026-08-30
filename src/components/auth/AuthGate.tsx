@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/Sidebar'
 
@@ -21,12 +21,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const rotaPublica = ROTAS_PUBLICAS.includes(pathname)
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false)
 
   useEffect(() => {
     if (loading) return
     if (!user && !rotaPublica) router.replace('/login')
     if (user && perfil && perfil.role !== 'PENDENTE' && rotaPublica) router.replace('/')
   }, [loading, user, perfil, rotaPublica, router])
+
+  useEffect(() => { setMenuMobileAberto(false) }, [pathname])
 
   if (rotaPublica) return <>{children}</>
 
@@ -53,9 +56,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-base)' }}>
-      <Sidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
+    <div className="onda-app-shell" style={{ backgroundColor: 'var(--bg-base)' }}>
+      <Sidebar mobileOpen={menuMobileAberto} onCloseMobile={() => setMenuMobileAberto(false)} />
+      <div className="onda-app-col">
+        <div className="onda-mobile-topbar">
+          <button onClick={() => setMenuMobileAberto(true)} aria-label="Abrir menu"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 4, display: 'flex' }}>
+            <Menu size={20} />
+          </button>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Onda OS</span>
+        </div>
+        <main className="onda-app-main">{children}</main>
+      </div>
     </div>
   )
 }

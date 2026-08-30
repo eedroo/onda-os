@@ -228,7 +228,7 @@ export default function FinanceiroPage() {
         {/* ── Dashboard ── */}
         {tab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
               <div className="card" style={{ padding: '12px 14px', borderTop: '2px solid var(--accent-blue)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>MRR</div>
                 <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--accent-blue)', fontVariantNumeric: 'tabular-nums' }}>{fmtEUR.format(mrrAtual)}</div>
@@ -264,7 +264,7 @@ export default function FinanceiroPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, alignItems: 'start' }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, alignItems: 'start' }}>
               {/* Gráfico */}
               <div className="card" style={{ padding: 16, minWidth: 0 }}>
                 <div className="sec-title">Receita vs. Despesa — últimos 6 meses</div>
@@ -513,7 +513,7 @@ function ModalNovaReceita({ clientes, onClose, onCreated }: { clientes: Cliente[
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 440, maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(440px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Nova receita</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
@@ -528,7 +528,7 @@ function ModalNovaReceita({ clientes, onClose, onCreated }: { clientes: Cliente[
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Valor (€) *</label>
               <input className="input" type="number" min="0" step="0.01" placeholder="0,00" value={valor} onChange={e => setValor(e.target.value)} />
@@ -544,7 +544,7 @@ function ModalNovaReceita({ clientes, onClose, onCreated }: { clientes: Cliente[
             <input className="input" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Ex: Mensalidade Julho" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Tipo</label>
               <select className="select" value={tipo} onChange={e => setTipo(e.target.value)}>
@@ -617,7 +617,7 @@ function ModalNovaDespesa({ onClose, onCreated }: { onClose: () => void; onCreat
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 440, maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(440px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Nova despesa</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
@@ -631,7 +631,7 @@ function ModalNovaDespesa({ onClose, onCreated }: { onClose: () => void; onCreat
 
           <div>
             <label style={labelStyle}>Categoria *</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
               {CATEGORIAS_DESPESA.map(cat => {
                 const Icon = cat.icon
                 const ativo = categoria === cat.id
@@ -646,7 +646,7 @@ function ModalNovaDespesa({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Valor (€) *</label>
               <input className="input" type="number" min="0" step="0.01" placeholder="0,00" value={valor} onChange={e => setValor(e.target.value)} />
@@ -657,7 +657,7 @@ function ModalNovaDespesa({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Método de pagamento</label>
               <select className="select" value={metodoPagamento} onChange={e => setMetodoPagamento(e.target.value)}>

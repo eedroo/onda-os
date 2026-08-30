@@ -197,3 +197,43 @@
 .text-accent-red     { color: var(--accent-red) !important; }
 .bg-brand  { background-color: var(--brand) !important; }
 .text-brand { color: var(--brand) !important; }
+
+/* ─── Shell responsivo (sidebar vira drawer abaixo de 768px) ─── */
+.onda-app-shell { display: flex; height: 100vh; overflow: hidden; }
+.onda-app-col { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+.onda-app-main { flex: 1; overflow: auto; min-width: 0; }
+.onda-mobile-topbar { display: none; }
+.onda-sidebar-backdrop { display: none; }
+.onda-sidebar-close { display: none; }
+
+@media (max-width: 768px) {
+  .onda-mobile-topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface); flex-shrink: 0;
+  }
+  .onda-sidebar-close { display: flex; }
+  .onda-sidebar-backdrop {
+    display: block; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 290;
+  }
+  .onda-sidebar {
+    position: fixed !important; top: 0; left: 0; height: 100vh; z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 0 24px rgba(0,0,0,0.25);
+  }
+  .onda-sidebar.open { transform: translateX(0); }
+}
+
+/* Grids multi-coluna (proporções tipo "1.6fr 1fr") empilham numa só coluna
+   em ecrãs estreitos — mantém o rácio inline como está no desktop. */
+@media (max-width: 640px) {
+  .onda-grid-stack { grid-template-columns: 1fr !important; }
+}
+
+/* Esconde texto de apoio em ecrãs muito estreitos (ex: labels ao lado de
+   indicadores de passo), mantendo só o essencial (números/ícones). */
+@media (max-width: 480px) {
+  .onda-hide-mobile { display: none !important; }
+}

@@ -175,7 +175,7 @@ export default function ClientePage() {
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
             <div className="card" style={{ padding: '12px 14px', borderTop: '2px solid var(--accent-blue)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>Plano</div>
               <span className={`pill ${PLANO_COLOR[cliente.plano]}`}>{cliente.plano}</span>
@@ -194,7 +194,7 @@ export default function ClientePage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
             {/* Serviços */}
             <div className="card" style={{ padding: 16 }}>

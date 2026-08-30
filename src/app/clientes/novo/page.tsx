@@ -162,8 +162,7 @@ export default function NovoClientePage() {
             }}>
               {step > p.n ? <Check size={10} /> : p.n}
             </div>
-            <span style={{ display: 'none' }} className="sm:inline">{p.label}</span>
-            {p.label}
+            <span className="onda-hide-mobile">{p.label}</span>
           </div>
         ))}
       </div>
@@ -179,7 +178,7 @@ export default function NovoClientePage() {
             {step === 1 && (
               <div className="card p-5">
                 <div className="sec-title">Dados básicos</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div style={{ gridColumn: '1/-1' }}>
                     <label style={labelStyle}>Empresa *</label>
                     <input className="input" value={dados.empresa} onChange={e => setDados(d => ({ ...d, empresa: e.target.value }))} required placeholder="Nome da empresa" />
@@ -210,7 +209,7 @@ export default function NovoClientePage() {
                 {planosConfig.length === 0 ? (
                   <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '8px 0 16px' }}>Sem planos configurados — cria planos em Configurações.</div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8, marginBottom: 16 }}>
                     {planosConfig.map(p => (
                       <button
                         key={p.id} type="button"
@@ -310,7 +309,7 @@ export default function NovoClientePage() {
               <>
                 <div className="card p-5">
                   <div className="sec-title">Configuração</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={labelStyle}>MRR — Valor mensal (€)</label>
                       <input className="input" type="number" value={config4.mrr} onChange={e => setConfig4(f => ({ ...f, mrr: Number(e.target.value) }))} placeholder="0" />
@@ -334,7 +333,7 @@ export default function NovoClientePage() {
                         — define quais tarefas são geradas mensalmente
                       </span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
                       {FASES_SITE.map(f => (
                         <button
                           key={f.id} type="button"
@@ -362,7 +361,7 @@ export default function NovoClientePage() {
 
                 <div className="card p-5">
                   <div className="sec-title">Links</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {[
                       { key: 'driveUrl', label: 'Google Drive' },
                       { key: 'canvaUrl', label: 'Canva' },

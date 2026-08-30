@@ -184,7 +184,7 @@ export default function LeadDetalhePage() {
       } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 14, alignItems: 'start' }}>
+        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 14, alignItems: 'start' }}>
 
           {/* Esquerda: dados + score + próxima ação */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -353,7 +353,7 @@ function ConfirmModal({
   const [valor, setValor] = useState('')
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 400, padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(400px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{titulo}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>

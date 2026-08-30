@@ -82,7 +82,7 @@ function ReunioesConteudo() {
       } />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 1fr', gap: 14, alignItems: 'start' }}>
+        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '2.4fr 1fr', gap: 14, alignItems: 'start' }}>
 
           <div className="card" style={{ padding: 16, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -99,25 +99,27 @@ function ReunioesConteudo() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-              {DIAS_SEMANA.map(d => <div key={d} style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>)}
-              {celulas.map((dia, i) => (
-                <div key={i} style={{ minHeight: 78, borderRadius: 6, padding: 4, backgroundColor: dia ? 'var(--bg-card)' : 'transparent', border: dia ? '1px solid var(--border-subtle)' : 'none' }}>
-                  {dia && (
-                    <>
-                      <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 3 }}>{dia}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {(porDia[dia] || []).map(r => (
-                          <Link key={r.id} href={`/reunioes/${r.id}`} title={`${r.hora} — ${r.nomeAssociado}`}
-                            style={{ display: 'block', fontSize: 9, padding: '2px 4px', borderRadius: 3, backgroundColor: `color-mix(in srgb, ${TIPO_COR[r.tipo]} 18%, transparent)`, color: TIPO_COR[r.tipo], textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.status === 'CANCELADA' ? 0.5 : 1 }}>
-                            {r.hora} {r.nomeAssociado}
-                          </Link>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, minWidth: 560 }}>
+                {DIAS_SEMANA.map(d => <div key={d} style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>)}
+                {celulas.map((dia, i) => (
+                  <div key={i} style={{ minHeight: 78, borderRadius: 6, padding: 4, backgroundColor: dia ? 'var(--bg-card)' : 'transparent', border: dia ? '1px solid var(--border-subtle)' : 'none' }}>
+                    {dia && (
+                      <>
+                        <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 3 }}>{dia}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {(porDia[dia] || []).map(r => (
+                            <Link key={r.id} href={`/reunioes/${r.id}`} title={`${r.hora} — ${r.nomeAssociado}`}
+                              style={{ display: 'block', fontSize: 9, padding: '2px 4px', borderRadius: 3, backgroundColor: `color-mix(in srgb, ${TIPO_COR[r.tipo]} 18%, transparent)`, color: TIPO_COR[r.tipo], textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.status === 'CANCELADA' ? 0.5 : 1 }}>
+                              {r.hora} {r.nomeAssociado}
+                            </Link>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -199,7 +201,7 @@ function ModalNovaReuniao({ leads, clientes, leadIdPreset, onClose, onCreated }:
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 440, maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(440px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Nova reunião</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
@@ -226,13 +228,13 @@ function ModalNovaReuniao({ leads, clientes, leadIdPreset, onClose, onCreated }:
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle}>Data *</label><DatePicker value={data} onChange={setData} /></div>
             <div><label style={labelStyle}>Hora *</label><input className="input" type="time" value={hora} onChange={e => setHora(e.target.value)} /></div>
             <div><label style={labelStyle}>Duração (min)</label><input className="input" type="number" min="0" step="5" value={duracao} onChange={e => setDuracao(Number(e.target.value))} /></div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Formato</label>
               <select className="select" value={formato} onChange={e => setFormato(e.target.value)}>

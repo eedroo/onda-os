@@ -440,7 +440,7 @@ function PlanosTab({ planos, servicos, onReload, notify }: {
       {showForm && (
         <div className="card" style={{ padding: 16 }}>
           <div className="sec-title">{editando ? 'Editar plano' : 'Novo plano'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 14 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 14 }}>
             <div>
               <label style={labelStyle}>Nome do plano *</label>
               <input className="input" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: GROWTH" />

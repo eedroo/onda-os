@@ -240,7 +240,7 @@ function GridView({ docsFiltrados, pesquisa, categoriaFiltro, tipoFiltro, onSele
   const semResultados = docsFiltrados.length === 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10 }}>
         {CATEGORIAS.map(cat => {
           const Icon = cat.icon
           const total = docsFiltrados.filter(d => d.categoria === cat.id).length
@@ -372,7 +372,7 @@ function DocForm({ docExistente, onCancelar, onGuardado }: { docExistente?: KBDo
             <label style={labelStyle}>Título *</label>
             <input className="input" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título do documento" autoFocus />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Tipo</label>
               <select className="select" value={tipo} onChange={e => setTipo(e.target.value as DocTipo)}>

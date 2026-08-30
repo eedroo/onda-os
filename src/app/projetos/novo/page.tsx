@@ -139,7 +139,7 @@ function NovoProjetoForm() {
             <>
               <div className="card p-5">
                 <div className="sec-title">Cliente e período</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
+                <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
                   <div>
                     <label style={labelStyle}>Cliente</label>
                     <select className="select" value={clienteId} onChange={e => onClienteChange(e.target.value)}>

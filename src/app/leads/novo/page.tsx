@@ -62,19 +62,19 @@ function NovoLeadForm() {
             <input className="input" value={empresa} onChange={e => setEmpresa(e.target.value)} placeholder="Nome da empresa" autoFocus />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle}>Contacto</label><input className="input" value={contacto} onChange={e => setContacto(e.target.value)} placeholder="Nome da pessoa" /></div>
             <div><label style={labelStyle}>Telefone</label><input className="input" value={telefone} onChange={e => setTelefone(e.target.value)} /></div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle}>Email</label><input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
             <div><label style={labelStyle}>Website</label><input className="input" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." /></div>
           </div>
 
           <div><label style={labelStyle}>Instagram</label><input className="input" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="@utilizador" /></div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Origem</label>
               <select className="select" value={origem} onChange={e => setOrigem(e.target.value as Origem)}>

@@ -291,7 +291,7 @@ export default function ProjetoPage() {
           {showForm && (
             <div className="card" style={{ padding: 16, maxWidth: 960 }}>
               <div className="sec-title">Nova tarefa</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
                   <label style={labelStyle}>Título *</label>
                   <input className="input" value={novaTarefa.titulo} onChange={e => setNovaTarefa(f => ({ ...f, titulo: e.target.value }))} placeholder="Título da tarefa" />
@@ -404,7 +404,7 @@ export default function ProjetoPage() {
       {showRelatorioModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={() => !gerandoPDF && setShowRelatorioModal(false)}>
-          <div className="card" style={{ width: 420, padding: 20 }} onClick={e => e.stopPropagation()}>
+          <div className="card" style={{ width: 'min(420px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>Gerar Relatório PDF</div>
             <label style={{ ...labelStyle, textTransform: 'none', letterSpacing: 0 }}>Próximos passos para {nomeProximoMes}</label>
             <textarea className="input" rows={4} value={proximosPassos} onChange={e => setProximosPassos(e.target.value)}

@@ -249,7 +249,7 @@ export default function TarefaPage() {
             </div>
 
             {/* Categoria + Serviço */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
               <div>
                 <label style={labelStyle}><Tag size={10} style={{ display: 'inline', marginRight: 4 }} />Categoria</label>
                 <select className="select" value={categoria} onChange={e => setCategoria(e.target.value)}>
@@ -267,7 +267,7 @@ export default function TarefaPage() {
             </div>
 
             {/* Datas */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
               <div>
                 <label style={labelStyle}>Data de início</label>
                 <DatePicker value={dataInicio} onChange={setDataInicio} />

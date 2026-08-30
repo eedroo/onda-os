@@ -146,7 +146,7 @@ function ModalNovoContrato({ leads, clientes, onClose, onCreated }: { leads: Lea
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div className="card" style={{ width: 420, maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 'min(420px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Novo contrato</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
@@ -160,7 +160,7 @@ function ModalNovoContrato({ leads, clientes, onClose, onCreated }: { leads: Lea
               <optgroup label="Clientes">{clientes.map(c => <option key={c.id} value={`cliente:${c.id}`}>{c.empresa}</option>)}</optgroup>
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}>Plano</label>
               <select className="select" value={plano} onChange={e => setPlano(e.target.value as PlanoRec)}>
@@ -169,7 +169,7 @@ function ModalNovoContrato({ leads, clientes, onClose, onCreated }: { leads: Lea
             </div>
             <div><label style={labelStyle}>Valor mensal (€) *</label><input className="input" type="number" min="0" step="0.01" value={valor} onChange={e => setValor(e.target.value)} /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle}>Data início</label><DatePicker value={dataInicio} onChange={setDataInicio} /></div>
             <div><label style={labelStyle}>Data fim</label><DatePicker value={dataFim} onChange={setDataFim} /></div>
           </div>
