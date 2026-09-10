@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X, ClipboardList
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { useAuth } from '@/lib/auth'
@@ -39,6 +39,7 @@ const nav = [
     items: [
       { href: '/financeiro',     icon: Coins,          label: 'Financeiro' },
       { href: '/kpis',           icon: LineChart,      label: 'KPIs' },
+      { href: '/briefings',      icon: ClipboardList,  label: 'Briefings' },
       { href: '/knowledge-base', icon: BookOpen,       label: 'Knowledge Base' },
       { href: '/ia-agentes',     icon: Bot,            label: 'IA & Agentes' },
       { href: '/ferramentas',    icon: Wrench,         label: 'Ferramentas' },

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/Sidebar'
 
 const ROTAS_PUBLICAS = ['/login', '/registar']
+const PREFIXOS_PUBLICOS = ['/briefing/']
 
 function TelaCentral({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +21,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, perfil, loading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
-  const rotaPublica = ROTAS_PUBLICAS.includes(pathname)
+  const rotaPublica = ROTAS_PUBLICAS.includes(pathname) || PREFIXOS_PUBLICOS.some(p => pathname.startsWith(p))
   const [menuMobileAberto, setMenuMobileAberto] = useState(false)
 
   useEffect(() => {

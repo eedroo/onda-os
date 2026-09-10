@@ -14,6 +14,7 @@ import {
   type Auditoria, type Reuniao, type Proposta, type TimelineEntry,
 } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { EnviarBriefingButton } from '@/components/briefing/EnviarBriefingButton'
 
 const ORIGENS: { id: Origem; label: string }[] = [
   { id: 'INSTAGRAM', label: 'Instagram' }, { id: 'LANDING', label: 'Landing page' },
@@ -159,6 +160,7 @@ export default function LeadDetalhePage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
       <PageHeader title={<>{lead.empresa} <span className={`pill ${STATUS_PILL_CLS[lead.status]}`}>{STATUS_LABEL[lead.status]}</span></>} onBack={() => router.back()} actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <EnviarBriefingButton leadId={id} nomeAssociado={lead.empresa} />
           {lead.status === 'NOVO' && (
             <button onClick={qualificar} className="btn btn-primary"><ClipboardCheck size={13} /> Qualificar</button>
           )}

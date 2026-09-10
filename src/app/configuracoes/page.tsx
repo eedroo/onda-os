@@ -1,21 +1,24 @@
 'use client'
 
 import { useEffect, useState, type CSSProperties } from 'react'
-import { Settings, Plus, Trash2, Pencil, Loader2, Check } from 'lucide-react'
+import { Settings, Plus, Trash2, Pencil, Loader2, Check, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   categoriasService, servicosService, planosService, seedConfiguracoes, usuariosService,
+  briefingPerguntasService, BRIEFING_CATEGORIA_INFO, BRIEFING_TIPO_LABEL,
   type Categoria, type Servico, type TarefaTemplate, type PlanoConfig, type Frequencia,
   type Usuario, type PerfilRole,
+  type BriefingPergunta, type BriefingCategoria, type BriefingPerguntaTipo,
 } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/ui/PageHeader'
 
-type Tab = 'categorias' | 'servicos' | 'planos' | 'utilizadores'
+type Tab = 'categorias' | 'servicos' | 'planos' | 'briefings' | 'utilizadores'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categorias', label: 'Categorias' },
   { id: 'servicos', label: 'Serviços' },
   { id: 'planos', label: 'Planos' },
+  { id: 'briefings', label: 'Briefings' },
   { id: 'utilizadores', label: 'Utilizadores' },
 ]
 
@@ -35,6 +38,7 @@ export default function ConfiguracoesPage() {
   const [servicos, setServicos] = useState<Servico[]>([])
   const [planos, setPlanos] = useState<PlanoConfig[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [briefingPerguntas, setBriefingPerguntas] = useState<BriefingPergunta[]>([])
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const ehAdmin = perfil?.role === 'ADMIN'
@@ -45,14 +49,15 @@ export default function ConfiguracoesPage() {
   async function load() {
     setLoading(true)
     try {
-      let [c, s, p, u] = await Promise.all([
+      let [c, s, p, u, bp] = await Promise.all([
         categoriasService.getAll(), servicosService.getAll(), planosService.getAll(), usuariosService.getAll(),
+        briefingPerguntasService.getAll(),
       ])
       if (c.length === 0) {
         await seedConfiguracoes()
         ;[c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
       }
-      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u)
+      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -97,6 +102,9 @@ export default function ConfiguracoesPage() {
           )}
           {tab === 'planos' && (
             <PlanosTab planos={planos} servicos={servicos} onReload={load} notify={notify} />
+          )}
+          {tab === 'briefings' && (
+            <BriefingsTab perguntas={briefingPerguntas} onReload={load} notify={notify} />
           )}
           {tab === 'utilizadores' && ehAdmin && (
             <UtilizadoresTab usuarios={usuarios} onReload={load} />
@@ -500,6 +508,157 @@ function PlanosTab({ planos, servicos, onReload, notify }: {
                   {p.servicoNomes.map(nome => <span key={nome} className="pill pill-blue">{nome}</span>)}
                 </div>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Tab: Briefings ─────────────────────────────────────────────────────────
+
+const BRIEFING_TIPOS: BriefingPerguntaTipo[] = ['texto', 'textarea', 'escolha_unica', 'escolha_multipla', 'link']
+const BRIEFING_CATEGORIAS = Object.keys(BRIEFING_CATEGORIA_INFO) as BriefingCategoria[]
+
+function BriefingsTab({ perguntas, onReload, notify }: {
+  perguntas: BriefingPergunta[]; onReload: () => Promise<void>; notify: (m: string) => void
+}) {
+  const [categoria, setCategoria] = useState<BriefingCategoria>('google_business')
+  const [showForm, setShowForm] = useState(false)
+  const [editando, setEditando] = useState<BriefingPergunta | null>(null)
+  const [label, setLabel] = useState('')
+  const [tipo, setTipo] = useState<BriefingPerguntaTipo>('texto')
+  const [obrigatoria, setObrigatoria] = useState(true)
+  const [opcoesTexto, setOpcoesTexto] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const daCategoria = perguntas.filter(p => p.categoria === categoria).sort((a, b) => a.ordem - b.ordem)
+  const temOpcoes = tipo === 'escolha_unica' || tipo === 'escolha_multipla'
+
+  function abrirNova() {
+    setEditando(null)
+    setLabel(''); setTipo('texto'); setObrigatoria(true); setOpcoesTexto('')
+    setShowForm(true)
+  }
+
+  function abrirEditar(p: BriefingPergunta) {
+    setEditando(p)
+    setLabel(p.label); setTipo(p.tipo); setObrigatoria(p.obrigatoria); setOpcoesTexto((p.opcoes || []).join('\n'))
+    setShowForm(true)
+  }
+
+  async function guardar() {
+    if (!label.trim()) return
+    setSaving(true)
+    try {
+      const opcoes = temOpcoes ? opcoesTexto.split('\n').map(o => o.trim()).filter(Boolean) : undefined
+      if (editando) {
+        await briefingPerguntasService.update(editando.id!, { label, tipo, obrigatoria, opcoes })
+        notify('Pergunta actualizada')
+      } else {
+        await briefingPerguntasService.create({ categoria, label, tipo, obrigatoria, opcoes, ordem: daCategoria.length + 1 })
+        notify('Pergunta criada')
+      }
+      setShowForm(false)
+      await onReload()
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
+  }
+
+  async function eliminar(p: BriefingPergunta) {
+    if (!confirm(`Eliminar a pergunta "${p.label}"?`)) return
+    await briefingPerguntasService.delete(p.id!)
+    notify('Pergunta eliminada')
+    await onReload()
+  }
+
+  async function mover(p: BriefingPergunta, direcao: -1 | 1) {
+    const idx = daCategoria.findIndex(x => x.id === p.id)
+    const novoIdx = idx + direcao
+    if (novoIdx < 0 || novoIdx >= daCategoria.length) return
+    const reordenadas = [...daCategoria]
+    const tmp = reordenadas[idx]
+    reordenadas[idx] = reordenadas[novoIdx]
+    reordenadas[novoIdx] = tmp
+    await briefingPerguntasService.reordenar(reordenadas.map(x => x.id!))
+    await onReload()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        Perguntas dos formulários públicos de briefing, por serviço. O formulário que o cliente vê reflete sempre esta versão actual.
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {BRIEFING_CATEGORIAS.map(c => (
+          <button key={c} onClick={() => setCategoria(c)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: categoria === c ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: categoria === c ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: categoria === c ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            {BRIEFING_CATEGORIA_INFO[c].icon} {BRIEFING_CATEGORIA_INFO[c].label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={abrirNova} className="btn btn-primary"><Plus size={13} /> Nova pergunta</button>
+      </div>
+
+      {showForm && (
+        <div className="card" style={{ padding: 16 }}>
+          <div className="sec-title">{editando ? 'Editar pergunta' : 'Nova pergunta'} — {BRIEFING_CATEGORIA_INFO[categoria].label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Pergunta *</label>
+              <input className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Ex: Qual é o teu público-alvo?" />
+            </div>
+            <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Tipo de resposta</label>
+                <select className="select" value={tipo} onChange={e => setTipo(e.target.value as BriefingPerguntaTipo)}>
+                  {BRIEFING_TIPOS.map(t => <option key={t} value={t}>{BRIEFING_TIPO_LABEL[t]}</option>)}
+                </select>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20, cursor: 'pointer' }}>
+                <input type="checkbox" checked={obrigatoria} onChange={e => setObrigatoria(e.target.checked)} style={{ width: 14, height: 14, accentColor: 'var(--brand)', cursor: 'pointer' }} />
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Pergunta obrigatória</span>
+              </label>
+            </div>
+            {temOpcoes && (
+              <div>
+                <label style={labelStyle}>Opções (uma por linha)</label>
+                <textarea className="input" rows={4} style={{ resize: 'vertical' }} value={opcoesTexto} onChange={e => setOpcoesTexto(e.target.value)} placeholder={'Opção A\nOpção B\nOpção C'} />
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowForm(false)} className="btn btn-ghost">Cancelar</button>
+              <button onClick={guardar} disabled={saving || !label.trim()} className="btn btn-primary">
+                {saving ? <Loader2 size={12} className="animate-spin" /> : null} Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {daCategoria.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-faint)', fontSize: 13 }}>Sem perguntas para {BRIEFING_CATEGORIA_INFO[categoria].label} ainda</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {daCategoria.map((p, i) => (
+            <div key={p.id} className="card" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{p.label}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                  <span className="pill pill-blue">{BRIEFING_TIPO_LABEL[p.tipo]}</span>
+                  {p.obrigatoria && <span className="pill pill-amber">Obrigatória</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+                <button onClick={() => mover(p, -1)} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', padding: 0, color: 'var(--text-faint)', opacity: i === 0 ? 0.3 : 1 }}><ChevronUp size={13} /></button>
+                <button onClick={() => mover(p, 1)} disabled={i === daCategoria.length - 1} style={{ background: 'none', border: 'none', cursor: i === daCategoria.length - 1 ? 'default' : 'pointer', padding: 0, color: 'var(--text-faint)', opacity: i === daCategoria.length - 1 ? 0.3 : 1 }}><ChevronDown size={13} /></button>
+              </div>
+              <button onClick={() => abrirEditar(p)} className="btn btn-ghost" style={{ padding: '4px 8px', flexShrink: 0 }}><Pencil size={12} /></button>
+              <button onClick={() => eliminar(p)} className="btn btn-danger" style={{ padding: '4px 8px', flexShrink: 0 }}><Trash2 size={12} /></button>
             </div>
           ))}
         </div>

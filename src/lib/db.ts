@@ -1154,3 +1154,126 @@ Os preços exactos e condições comerciais estão no documento de propostas —
 
   for (const d of docs) await kbService.create(d)
 }
+
+// ─── Briefings ──────────────────────────────────────────────────────────────
+export type BriefingCategoria = 'google_business' | 'site' | 'instagram' | 'seo_blog'
+
+export const BRIEFING_CATEGORIA_INFO: Record<BriefingCategoria, { label: string; icon: string }> = {
+  google_business: { label: 'Google Business', icon: '📍' },
+  site:            { label: 'Site', icon: '🌐' },
+  instagram:       { label: 'Instagram / Redes Sociais', icon: '📸' },
+  seo_blog:        { label: 'SEO / Blog', icon: '🔍' },
+}
+
+export type BriefingPerguntaTipo = 'texto' | 'textarea' | 'escolha_unica' | 'escolha_multipla' | 'link'
+
+export const BRIEFING_TIPO_LABEL: Record<BriefingPerguntaTipo, string> = {
+  texto: 'Texto curto', textarea: 'Texto longo', escolha_unica: 'Escolha única',
+  escolha_multipla: 'Escolha múltipla', link: 'Link',
+}
+
+export interface BriefingPergunta {
+  id?: string
+  categoria: BriefingCategoria
+  label: string
+  tipo: BriefingPerguntaTipo
+  obrigatoria: boolean
+  opcoes?: string[] // para escolha_unica / escolha_multipla
+  ordem: number
+  createdAt?: Timestamp
+}
+
+// O ID do documento É o token usado no link público (ex: /briefing/{token}).
+// Isto permite às regras do Firestore autorizar leitura de UM link (get)
+// sem ter de expor a coleção inteira (list) a visitantes anónimos.
+export interface BriefingLink {
+  id?: string
+  categoria: BriefingCategoria
+  clienteId?: string
+  leadId?: string
+  nomeAssociado: string
+  status: 'PENDENTE' | 'RESPONDIDO'
+  createdAt?: Timestamp
+  respondidoEm?: Timestamp
+}
+
+export interface BriefingRespostaItem {
+  perguntaId: string
+  label: string
+  valor: string | string[]
+}
+
+export interface BriefingResposta {
+  id?: string
+  linkId: string // == id/token do BriefingLink
+  categoria: BriefingCategoria
+  clienteId?: string
+  leadId?: string
+  nomeAssociado: string
+  respostas: BriefingRespostaItem[]
+  createdAt?: Timestamp
+}
+
+function gerarTokenBriefing(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+}
+
+export const briefingPerguntasService = {
+  async getAll(): Promise<BriefingPergunta[]> {
+    const snap = await getDocs(collection(db, 'briefingPerguntas'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BriefingPergunta))
+  },
+  async getByCategoria(categoria: BriefingCategoria): Promise<BriefingPergunta[]> {
+    const todas = await briefingPerguntasService.getAll()
+    return todas.filter(p => p.categoria === categoria).sort((a, b) => a.ordem - b.ordem)
+  },
+  async create(data: Omit<BriefingPergunta, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'briefingPerguntas'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async update(id: string, data: Partial<BriefingPergunta>): Promise<void> {
+    await updateDoc(doc(db, 'briefingPerguntas', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'briefingPerguntas', id))
+  },
+  async reordenar(idsOrdenados: string[]): Promise<void> {
+    const batch = writeBatch(db)
+    idsOrdenados.forEach((id, i) => batch.update(doc(db, 'briefingPerguntas', id), { ordem: i + 1 }))
+    await batch.commit()
+  },
+}
+
+export const briefingLinksService = {
+  async criar(data: Omit<BriefingLink, 'id' | 'status' | 'createdAt' | 'respondidoEm'>): Promise<string> {
+    const token = gerarTokenBriefing()
+    await setDoc(doc(db, 'briefingLinks', token), { ...data, status: 'PENDENTE', createdAt: serverTimestamp() })
+    return token
+  },
+  async getByToken(token: string): Promise<BriefingLink | null> {
+    const snap = await getDoc(doc(db, 'briefingLinks', token))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as BriefingLink : null
+  },
+  async getAll(): Promise<BriefingLink[]> {
+    const snap = await getDocs(collection(db, 'briefingLinks'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BriefingLink))
+  },
+  async marcarRespondido(token: string): Promise<void> {
+    await updateDoc(doc(db, 'briefingLinks', token), { status: 'RESPONDIDO', respondidoEm: serverTimestamp() })
+  },
+}
+
+export const briefingRespostasService = {
+  async create(data: Omit<BriefingResposta, 'id' | 'createdAt'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'briefingRespostas'), { ...data, createdAt: serverTimestamp() })
+    return ref.id
+  },
+  async getAll(): Promise<BriefingResposta[]> {
+    const snap = await getDocs(collection(db, 'briefingRespostas'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BriefingResposta))
+  },
+  async getByLinkId(linkId: string): Promise<BriefingResposta | null> {
+    const todas = await briefingRespostasService.getAll()
+    return todas.find(r => r.linkId === linkId) || null
+  },
+}

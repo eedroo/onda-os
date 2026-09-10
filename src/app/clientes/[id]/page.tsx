@@ -11,6 +11,7 @@ import {
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { EnviarBriefingButton } from '@/components/briefing/EnviarBriefingButton'
 
 function gerarIdLink() {
   return `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -166,6 +167,7 @@ export default function ClientePage() {
         subtitle={cliente.contacto}
         onBack={() => router.back()}
         actions={<>
+          <EnviarBriefingButton clienteId={id} nomeAssociado={cliente.empresa} />
           <Link href={`/clientes/${id}/editar`} className="btn btn-ghost"><Edit size={13} /> Editar</Link>
           <Link href={`/projetos/novo?cliente=${id}`} className="btn btn-primary"><Plus size={13} /> Novo projeto</Link>
         </>}
