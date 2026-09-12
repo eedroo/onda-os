@@ -1183,12 +1183,25 @@ export interface BriefingPergunta {
   createdAt?: Timestamp
 }
 
+// Perguntas gravadas dentro do próprio link (snapshot), não recalculadas a
+// partir da categoria — permite personalizar/editar as perguntas por envio
+// sem afetar o template da categoria nem os links já enviados.
+export interface BriefingPerguntaSnapshot {
+  id: string
+  label: string
+  tipo: BriefingPerguntaTipo
+  obrigatoria: boolean
+  opcoes?: string[]
+  ordem: number
+}
+
 // O ID do documento É o token usado no link público (ex: /briefing/{token}).
 // Isto permite às regras do Firestore autorizar leitura de UM link (get)
 // sem ter de expor a coleção inteira (list) a visitantes anónimos.
 export interface BriefingLink {
   id?: string
   categoria: BriefingCategoria
+  perguntas: BriefingPerguntaSnapshot[]
   clienteId?: string
   leadId?: string
   nomeAssociado: string

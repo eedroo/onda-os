@@ -4,9 +4,9 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import {
-  briefingLinksService, briefingPerguntasService, briefingRespostasService,
+  briefingLinksService, briefingRespostasService,
   BRIEFING_CATEGORIA_INFO,
-  type BriefingLink, type BriefingPergunta, type BriefingRespostaItem,
+  type BriefingLink, type BriefingPerguntaSnapshot, type BriefingRespostaItem,
 } from '@/lib/db'
 
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', display: 'block', marginBottom: 8 }
@@ -24,7 +24,7 @@ function Cartao({ children }: { children: ReactNode }) {
 export default function BriefingPublicoPage() {
   const { token } = useParams<{ token: string }>()
   const [link, setLink] = useState<BriefingLink | null>(null)
-  const [perguntas, setPerguntas] = useState<BriefingPergunta[]>([])
+  const [perguntas, setPerguntas] = useState<BriefingPerguntaSnapshot[]>([])
   const [loading, setLoading] = useState(true)
   const [naoEncontrado, setNaoEncontrado] = useState(false)
   const [respostas, setRespostas] = useState<Record<string, string | string[]>>({})
@@ -39,8 +39,7 @@ export default function BriefingPublicoPage() {
         if (!l) { setNaoEncontrado(true); setLoading(false); return }
         setLink(l)
         if (l.status === 'RESPONDIDO') { setEnviado(true); setLoading(false); return }
-        const p = await briefingPerguntasService.getByCategoria(l.categoria)
-        setPerguntas(p)
+        setPerguntas((l.perguntas || []).sort((a, b) => a.ordem - b.ordem))
       } catch (e) { console.error(e); setNaoEncontrado(true) }
       finally { setLoading(false) }
     }

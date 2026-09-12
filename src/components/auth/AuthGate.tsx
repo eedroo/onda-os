@@ -21,14 +21,17 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, perfil, loading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
-  const rotaPublica = ROTAS_PUBLICAS.includes(pathname) || PREFIXOS_PUBLICOS.some(p => pathname.startsWith(p))
+  const rotaAuth = ROTAS_PUBLICAS.includes(pathname)
+  const rotaPublica = rotaAuth || PREFIXOS_PUBLICOS.some(p => pathname.startsWith(p))
   const [menuMobileAberto, setMenuMobileAberto] = useState(false)
 
   useEffect(() => {
     if (loading) return
     if (!user && !rotaPublica) router.replace('/login')
-    if (user && perfil && perfil.role !== 'PENDENTE' && rotaPublica) router.replace('/')
-  }, [loading, user, perfil, rotaPublica, router])
+    // Só redireciona para fora de /login e /registar quando já autenticado —
+    // rotas como /briefing/{token} devem ficar visíveis mesmo com sessão activa.
+    if (user && perfil && perfil.role !== 'PENDENTE' && rotaAuth) router.replace('/')
+  }, [loading, user, perfil, rotaAuth, rotaPublica, router])
 
   useEffect(() => { setMenuMobileAberto(false) }, [pathname])
 
