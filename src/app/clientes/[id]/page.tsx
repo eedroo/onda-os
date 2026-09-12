@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare, TrendingUp } from 'lucide-react'
+import { Loader2, ExternalLink, Kanban, Plus, Edit, Trash2, Star, CheckSquare, TrendingUp, ClipboardList, Copy, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import {
   clientesService, projetosService, tarefasService, categoriasService, kpiValoresService,
+  briefingLinksService, briefingRespostasService, BRIEFING_CATEGORIA_INFO,
   KPI_CATEGORIA_INFO, formatarKPIValor, variacaoKPI,
   type Cliente, type Projeto, type Tarefa, type Categoria, type TarefaStatus, type KPIValor, type KPICategoria,
+  type BriefingLink, type BriefingResposta,
 } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -20,6 +22,11 @@ function gerarIdLink() {
 function nomeMesCurto(mes: number, ano: number) {
   const s = new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'short' })
   return s.replace('.', '').replace(/^\w/, c => c.toUpperCase())
+}
+
+function formatarDataBriefing(ts?: { toDate: () => Date }) {
+  if (!ts) return '—'
+  try { return ts.toDate().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) } catch { return '—' }
 }
 
 const PLANO_COLOR: Record<string, string> = { ONE: 'pill-green', PRESENCE: 'pill-purple', GROWTH: 'pill-blue' }
@@ -40,24 +47,38 @@ export default function ClientePage() {
   const [novoLink, setNovoLink] = useState({ label: '', url: '' })
   const [historico, setHistorico] = useState<{ mes: number; ano: number; valores: KPIValor[] }[]>([])
   const [tabMetrica, setTabMetrica] = useState<KPICategoria | null>(null)
+  const [briefings, setBriefings] = useState<BriefingLink[]>([])
+  const [briefingRespostas, setBriefingRespostas] = useState<BriefingResposta[]>([])
+  const [respostaAberta, setRespostaAberta] = useState<BriefingResposta | null>(null)
+  const [copiadoBriefingId, setCopiadoBriefingId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
-      const [c, p, t, cats] = await Promise.all([
+      const [c, p, t, cats, links, resps] = await Promise.all([
         clientesService.getById(id),
         projetosService.getByCliente(id),
         tarefasService.getByClientes([id]),
         categoriasService.getAll(),
+        briefingLinksService.getAll(),
+        briefingRespostasService.getAll(),
       ])
       setCliente(c)
       setProjetos(p)
       setTarefas(t)
       setCategoriasConfig(cats)
+      setBriefings(links.filter(l => l.clienteId === id).sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)))
+      setBriefingRespostas(resps)
       setHistorico(await kpiValoresService.getUltimos3Meses(id, p))
       setLoading(false)
     }
     load()
   }, [id])
+
+  const respostaPorLinkId = useMemo(() => {
+    const map: Record<string, BriefingResposta> = {}
+    briefingRespostas.forEach(r => { map[r.linkId] = r })
+    return map
+  }, [briefingRespostas])
 
   const categoriasComDados = useMemo(() => {
     const idsComDados = new Set(historico.flatMap(h => h.valores.map(v => v.kpiId)))
@@ -141,6 +162,22 @@ export default function ClientePage() {
     const linksFavoritos = (cliente.linksFavoritos || []).filter(l => l.id !== linkId)
     await clientesService.update(id, { linksFavoritos })
     setCliente(c => c ? { ...c, linksFavoritos } : c)
+  }
+
+  function copiarLinkBriefing(token: string) {
+    const url = `${window.location.origin}/briefing/${token}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiadoBriefingId(token)
+      setTimeout(() => setCopiadoBriefingId(null), 1500)
+    })
+  }
+
+  async function apagarBriefing(link: BriefingLink) {
+    if (!confirm(`Apagar o briefing "${BRIEFING_CATEGORIA_INFO[link.categoria].label}"? Esta ação não pode ser desfeita.`)) return
+    await briefingRespostasService.deleteByLinkId(link.id!)
+    await briefingLinksService.apagar(link.id!)
+    setBriefings(bs => bs.filter(b => b.id !== link.id))
+    setBriefingRespostas(rs => rs.filter(r => r.linkId !== link.id))
   }
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
@@ -299,6 +336,46 @@ export default function ClientePage() {
             )}
           </div>
 
+          {/* Briefings */}
+          {briefings.length > 0 && (
+            <div className="card" style={{ padding: 16 }}>
+              <div className="sec-title"><ClipboardList size={12} /> Briefings</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {briefings.map(l => {
+                  const resposta = respostaPorLinkId[l.id!]
+                  const info = BRIEFING_CATEGORIA_INFO[l.categoria]
+                  return (
+                    <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', backgroundColor: 'var(--bg-input)', borderRadius: 6, border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{info.icon}</span>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{info.label}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 1 }}>enviado {formatarDataBriefing(l.createdAt)}</div>
+                      </div>
+                      {l.status === 'RESPONDIDO' ? (
+                        <>
+                          <span className="pill pill-green" style={{ flexShrink: 0 }}>Respondido</span>
+                          {resposta && (
+                            <button onClick={() => setRespostaAberta(resposta)} className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px', flexShrink: 0 }}>Ver respostas</button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <span className="pill pill-amber" style={{ flexShrink: 0 }}>Pendente</span>
+                          <button onClick={() => copiarLinkBriefing(l.id!)} className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px', flexShrink: 0 }}>
+                            {copiadoBriefingId === l.id ? <Check size={11} /> : <Copy size={11} />} {copiadoBriefingId === l.id ? 'Copiado' : 'Copiar link'}
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => apagarBriefing(l)} className="btn btn-danger" style={{ padding: '4px 8px', flexShrink: 0 }} title="Apagar briefing">
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Tarefas — agrega todos os projectos deste cliente */}
           {(tarefas.length > 0 || projetos.length > 0) && (
             <div className="card" style={{ padding: 16, minWidth: 0 }}>
@@ -378,6 +455,30 @@ export default function ClientePage() {
 
         </div>
       </div>
+
+      {respostaAberta && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setRespostaAberta(null)}>
+          <div className="card" style={{ width: 'min(520px, 94vw)', maxHeight: '90vh', overflow: 'auto', padding: 20 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{respostaAberta.nomeAssociado}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>{BRIEFING_CATEGORIA_INFO[respostaAberta.categoria].icon} {BRIEFING_CATEGORIA_INFO[respostaAberta.categoria].label} · {formatarDataBriefing(respostaAberta.createdAt)}</div>
+              </div>
+              <button onClick={() => setRespostaAberta(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {respostaAberta.respostas.map((r, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: 10, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{r.label}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {Array.isArray(r.valor) ? (r.valor.length ? r.valor.join(', ') : '—') : (r.valor || '—')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

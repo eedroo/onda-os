@@ -1274,6 +1274,9 @@ export const briefingLinksService = {
   async marcarRespondido(token: string): Promise<void> {
     await updateDoc(doc(db, 'briefingLinks', token), { status: 'RESPONDIDO', respondidoEm: serverTimestamp() })
   },
+  async apagar(token: string): Promise<void> {
+    await deleteDoc(doc(db, 'briefingLinks', token))
+  },
 }
 
 export const briefingRespostasService = {
@@ -1288,5 +1291,9 @@ export const briefingRespostasService = {
   async getByLinkId(linkId: string): Promise<BriefingResposta | null> {
     const todas = await briefingRespostasService.getAll()
     return todas.find(r => r.linkId === linkId) || null
+  },
+  async deleteByLinkId(linkId: string): Promise<void> {
+    const resposta = await briefingRespostasService.getByLinkId(linkId)
+    if (resposta?.id) await deleteDoc(doc(db, 'briefingRespostas', resposta.id))
   },
 }
