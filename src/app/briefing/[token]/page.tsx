@@ -58,6 +58,19 @@ export default function BriefingPublicoPage() {
     })
   }
 
+  function notificarEquipa(l: BriefingLink, itens: BriefingRespostaItem[]) {
+    const info = BRIEFING_CATEGORIA_INFO[l.categoria]
+    const linkFicha = l.clienteId ? `${window.location.origin}/clientes/${l.clienteId}` : l.leadId ? `${window.location.origin}/leads/${l.leadId}` : null
+    fetch('/api/notificar-briefing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nomeAssociado: l.nomeAssociado, categoriaLabel: info.label, categoriaIcon: info.icon,
+        linkFicha, respostas: itens.map(i => ({ label: i.label, valor: i.valor })),
+      }),
+    }).catch(e => console.error(e))
+  }
+
   function podeEnviar() {
     return perguntas.filter(p => p.obrigatoria).every(p => {
       const v = respostas[p.id!]
@@ -81,6 +94,7 @@ export default function BriefingPublicoPage() {
       })
       await briefingLinksService.marcarRespondido(token)
       setEnviado(true)
+      notificarEquipa(link, itens)
     } catch (err) {
       console.error(err)
       setErro('Não foi possível enviar. Tenta novamente.')
