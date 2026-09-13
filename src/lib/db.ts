@@ -1297,3 +1297,24 @@ export const briefingRespostasService = {
     if (resposta?.id) await deleteDoc(doc(db, 'briefingRespostas', resposta.id))
   },
 }
+
+// ─── Notificações push ──────────────────────────────────────────────────────
+export interface PushSubscriptionDoc {
+  uid: string
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+  createdAt?: Timestamp
+}
+
+export const pushSubscriptionsService = {
+  async salvar(uid: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
+    const id = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 120)
+    await setDoc(doc(db, 'pushSubscriptions', id), {
+      uid, endpoint: subscription.endpoint, keys: subscription.keys, createdAt: serverTimestamp(),
+    })
+  },
+  async remover(endpoint: string): Promise<void> {
+    const id = btoa(endpoint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 120)
+    await deleteDoc(doc(db, 'pushSubscriptions', id))
+  },
+}

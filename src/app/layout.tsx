@@ -8,6 +8,11 @@ import { Toaster } from 'sonner'
 export const metadata: Metadata = {
   title: 'Onda OS',
   description: 'Sistema operacional da Onda Digital',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Onda OS',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

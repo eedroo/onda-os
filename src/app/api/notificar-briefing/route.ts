@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import webpush from 'web-push'
+import { getAdminDb } from '@/lib/firebaseAdmin'
 
 const DESTINATARIO = 'carlinhos686@gmail.com'
 
@@ -9,18 +11,9 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-export async function POST(req: NextRequest) {
+async function enviarEmail(nomeAssociado: string, categoriaLabel: string, categoriaIcon: string, linkFicha: string | null, respostas: RespostaEmail[]): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) return NextResponse.json({ ok: false, erro: 'RESEND_API_KEY não configurada' }, { status: 500 })
-
-  const { nomeAssociado, categoriaLabel, categoriaIcon, linkFicha, respostas } = await req.json() as {
-    nomeAssociado: string; categoriaLabel: string; categoriaIcon: string
-    linkFicha: string | null; respostas: RespostaEmail[]
-  }
-
-  if (!nomeAssociado || !categoriaLabel || !Array.isArray(respostas)) {
-    return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 })
-  }
+  if (!apiKey) { console.error('RESEND_API_KEY não configurada'); return false }
 
   const linhasRespostas = respostas.map(r => `
     <tr>
@@ -48,13 +41,63 @@ export async function POST(req: NextRequest) {
       subject: `Briefing respondido — ${nomeAssociado}`,
       html,
     })
-    if (error) {
-      console.error(error)
-      return NextResponse.json({ ok: false, erro: error.message }, { status: 502 })
-    }
-    return NextResponse.json({ ok: true })
+    if (error) { console.error(error); return false }
+    return true
   } catch (e) {
     console.error(e)
-    return NextResponse.json({ ok: false }, { status: 500 })
+    return false
   }
+}
+
+async function enviarPush(nomeAssociado: string, categoriaLabel: string, categoriaIcon: string, linkFicha: string | null): Promise<number> {
+  const vapidPublic = process.env.VAPID_PUBLIC_KEY
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY
+  if (!vapidPublic || !vapidPrivate) return 0
+
+  webpush.setVapidDetails(`mailto:${DESTINATARIO}`, vapidPublic, vapidPrivate)
+
+  try {
+    const db = getAdminDb()
+    const snap = await db.collection('pushSubscriptions').get()
+    const payload = JSON.stringify({
+      title: `${categoriaIcon} Briefing respondido`,
+      body: `${nomeAssociado} — ${categoriaLabel}`,
+      url: linkFicha || '/briefings',
+    })
+
+    let enviados = 0
+    await Promise.all(snap.docs.map(async d => {
+      const sub = d.data() as { endpoint: string; keys: { p256dh: string; auth: string } }
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload)
+        enviados++
+      } catch (e: unknown) {
+        const statusCode = (e as { statusCode?: number }).statusCode
+        if (statusCode === 404 || statusCode === 410) await d.ref.delete()
+        else console.error(e)
+      }
+    }))
+    return enviados
+  } catch (e) {
+    console.error(e)
+    return 0
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const { nomeAssociado, categoriaLabel, categoriaIcon, linkFicha, respostas } = await req.json() as {
+    nomeAssociado: string; categoriaLabel: string; categoriaIcon: string
+    linkFicha: string | null; respostas: RespostaEmail[]
+  }
+
+  if (!nomeAssociado || !categoriaLabel || !Array.isArray(respostas)) {
+    return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 })
+  }
+
+  const [emailEnviado, pushEnviados] = await Promise.all([
+    enviarEmail(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha, respostas),
+    enviarPush(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha),
+  ])
+
+  return NextResponse.json({ ok: true, emailEnviado, pushEnviados })
 }

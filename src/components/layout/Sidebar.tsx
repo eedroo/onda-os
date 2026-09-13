@@ -1,14 +1,17 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X, ClipboardList
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X, ClipboardList, Bell, BellOff
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { useAuth } from '@/lib/auth'
+import { ativarNotificacoesPush, notificacoesPushAtivas } from '@/lib/push'
 
 const nav = [
   {
@@ -73,11 +76,25 @@ export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen?: boolean; o
   const pathname = usePathname()
   const router = useRouter()
   const { theme, toggle } = useTheme()
-  const { perfil, logout } = useAuth()
+  const { user, perfil, logout } = useAuth()
+  const [notificacoesAtivas, setNotificacoesAtivas] = useState(false)
+
+  useEffect(() => {
+    notificacoesPushAtivas().then(setNotificacoesAtivas)
+  }, [])
 
   async function onLogout() {
     await logout()
     router.push('/login')
+  }
+
+  async function onAtivarNotificacoes() {
+    if (!user) return
+    const resultado = await ativarNotificacoesPush(user.uid)
+    if (resultado === 'subscribed') { setNotificacoesAtivas(true); toast.success('Notificações ativadas neste dispositivo') }
+    else if (resultado === 'denied') toast.error('Permissão de notificações recusada')
+    else if (resultado === 'unsupported') toast.error('Este navegador não suporta notificações push')
+    else toast.error('Não foi possível ativar as notificações')
   }
 
   return (
@@ -139,6 +156,12 @@ export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen?: boolean; o
 
         {/* Footer */}
         <div style={{ padding: '10px', borderTop: '1px solid var(--sidebar-border)' }}>
+          {!notificacoesAtivas && (
+            <FooterRow icon={Bell} label="Ativar notificações" onClick={onAtivarNotificacoes} />
+          )}
+          {notificacoesAtivas && (
+            <FooterRow icon={BellOff} label="Notificações ativas" onClick={() => toast.info('As notificações já estão ativas neste dispositivo')} />
+          )}
           <FooterRow icon={theme === 'dark' ? Sun : Moon} label={theme === 'dark' ? 'Tema claro' : 'Tema escuro'} onClick={toggle} />
           <FooterRow icon={LogOut} label="Sair" onClick={onLogout} />
         </div>
