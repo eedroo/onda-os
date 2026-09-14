@@ -1318,3 +1318,20 @@ export const pushSubscriptionsService = {
     await deleteDoc(doc(db, 'pushSubscriptions', id))
   },
 }
+
+export interface NotificacoesBriefingConfig {
+  email: boolean
+  push: boolean
+}
+
+const NOTIFICACOES_BRIEFING_DEFAULT: NotificacoesBriefingConfig = { email: true, push: true }
+
+export const notificacoesConfigService = {
+  async get(): Promise<NotificacoesBriefingConfig> {
+    const snap = await getDoc(doc(db, 'configuracoes', 'notificacoesBriefing'))
+    return snap.exists() ? { ...NOTIFICACOES_BRIEFING_DEFAULT, ...snap.data() } as NotificacoesBriefingConfig : NOTIFICACOES_BRIEFING_DEFAULT
+  },
+  async set(config: NotificacoesBriefingConfig): Promise<void> {
+    await setDoc(doc(db, 'configuracoes', 'notificacoesBriefing'), config)
+  },
+}

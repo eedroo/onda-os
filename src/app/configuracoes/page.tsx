@@ -5,20 +5,23 @@ import { Settings, Plus, Trash2, Pencil, Loader2, Check, ChevronUp, ChevronDown 
 import {
   categoriasService, servicosService, planosService, seedConfiguracoes, usuariosService,
   briefingPerguntasService, BRIEFING_CATEGORIA_INFO, BRIEFING_TIPO_LABEL,
+  notificacoesConfigService,
   type Categoria, type Servico, type TarefaTemplate, type PlanoConfig, type Frequencia,
   type Usuario, type PerfilRole,
   type BriefingPergunta, type BriefingCategoria, type BriefingPerguntaTipo,
+  type NotificacoesBriefingConfig,
 } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/ui/PageHeader'
 
-type Tab = 'categorias' | 'servicos' | 'planos' | 'briefings' | 'utilizadores'
+type Tab = 'categorias' | 'servicos' | 'planos' | 'briefings' | 'notificacoes' | 'utilizadores'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categorias', label: 'Categorias' },
   { id: 'servicos', label: 'Serviços' },
   { id: 'planos', label: 'Planos' },
   { id: 'briefings', label: 'Briefings' },
+  { id: 'notificacoes', label: 'Notificações' },
   { id: 'utilizadores', label: 'Utilizadores' },
 ]
 
@@ -39,6 +42,7 @@ export default function ConfiguracoesPage() {
   const [planos, setPlanos] = useState<PlanoConfig[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [briefingPerguntas, setBriefingPerguntas] = useState<BriefingPergunta[]>([])
+  const [notificacoesConfig, setNotificacoesConfig] = useState<NotificacoesBriefingConfig>({ email: true, push: true })
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const ehAdmin = perfil?.role === 'ADMIN'
@@ -49,15 +53,15 @@ export default function ConfiguracoesPage() {
   async function load() {
     setLoading(true)
     try {
-      let [c, s, p, u, bp] = await Promise.all([
+      let [c, s, p, u, bp, nc] = await Promise.all([
         categoriasService.getAll(), servicosService.getAll(), planosService.getAll(), usuariosService.getAll(),
-        briefingPerguntasService.getAll(),
+        briefingPerguntasService.getAll(), notificacoesConfigService.get(),
       ])
       if (c.length === 0) {
         await seedConfiguracoes()
         ;[c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
       }
-      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp)
+      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp); setNotificacoesConfig(nc)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -105,6 +109,9 @@ export default function ConfiguracoesPage() {
           )}
           {tab === 'briefings' && (
             <BriefingsTab perguntas={briefingPerguntas} onReload={load} notify={notify} />
+          )}
+          {tab === 'notificacoes' && (
+            <NotificacoesTab config={notificacoesConfig} onChange={setNotificacoesConfig} notify={notify} />
           )}
           {tab === 'utilizadores' && ehAdmin && (
             <UtilizadoresTab usuarios={usuarios} onReload={load} />
@@ -663,6 +670,43 @@ function BriefingsTab({ perguntas, onReload, notify }: {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Tab: Notificações ──────────────────────────────────────────────────────
+
+function NotificacoesTab({ config, onChange, notify }: {
+  config: NotificacoesBriefingConfig; onChange: (c: NotificacoesBriefingConfig) => void; notify: (m: string) => void
+}) {
+  async function alternar(campo: keyof NotificacoesBriefingConfig) {
+    const novo = { ...config, [campo]: !config[campo] }
+    onChange(novo)
+    await notificacoesConfigService.set(novo)
+    notify('Preferências guardadas')
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        Como queres ser avisado quando alguém responde a um briefing.
+      </div>
+      <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={config.email} onChange={() => alternar('email')} style={{ width: 15, height: 15, accentColor: 'var(--brand)', cursor: 'pointer' }} />
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>Email</div>
+            <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>Envia um resumo por email a cada resposta.</div>
+          </div>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={config.push} onChange={() => alternar('push')} style={{ width: 15, height: 15, accentColor: 'var(--brand)', cursor: 'pointer' }} />
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>Notificação push</div>
+            <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>Notificação no telemóvel/computador para quem ativou (barra lateral → Ativar notificações).</div>
+          </div>
+        </label>
+      </div>
     </div>
   )
 }

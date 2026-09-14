@@ -49,6 +49,19 @@ async function enviarEmail(nomeAssociado: string, categoriaLabel: string, catego
   }
 }
 
+interface NotificacoesBriefingConfig { email: boolean; push: boolean }
+
+async function getConfig(): Promise<NotificacoesBriefingConfig> {
+  try {
+    const snap = await getAdminDb().collection('configuracoes').doc('notificacoesBriefing').get()
+    const data = snap.data() as Partial<NotificacoesBriefingConfig> | undefined
+    return { email: data?.email ?? true, push: data?.push ?? true }
+  } catch (e) {
+    console.error(e)
+    return { email: true, push: true }
+  }
+}
+
 async function enviarPush(nomeAssociado: string, categoriaLabel: string, categoriaIcon: string, linkFicha: string | null): Promise<number> {
   const vapidPublic = process.env.VAPID_PUBLIC_KEY
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY
@@ -94,9 +107,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 })
   }
 
+  const config = await getConfig()
+
   const [emailEnviado, pushEnviados] = await Promise.all([
-    enviarEmail(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha, respostas),
-    enviarPush(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha),
+    config.email ? enviarEmail(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha, respostas) : Promise.resolve(false),
+    config.push ? enviarPush(nomeAssociado, categoriaLabel, categoriaIcon, linkFicha) : Promise.resolve(0),
   ])
 
   return NextResponse.json({ ok: true, emailEnviado, pushEnviados })
