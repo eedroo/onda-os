@@ -237,3 +237,11 @@
 @media (max-width: 480px) {
   .onda-hide-mobile { display: none !important; }
 }
+
+/* Impressão / "Guardar como PDF" de relatórios: esconde a navegação e tudo
+   o que não faz parte do conteúdo marcado como imprimível. */
+@media print {
+  .onda-no-print { display: none !important; }
+  .onda-print-area { position: static !important; overflow: visible !important; padding: 0 !important; }
+  body, .onda-app-shell, .onda-app-main { background: #fff !important; height: auto !important; overflow: visible !important; }
+}

@@ -63,7 +63,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     <div className="onda-app-shell" style={{ backgroundColor: 'var(--bg-base)' }}>
       <Sidebar mobileOpen={menuMobileAberto} onCloseMobile={() => setMenuMobileAberto(false)} />
       <div className="onda-app-col">
-        <div className="onda-mobile-topbar">
+        <div className="onda-mobile-topbar onda-no-print">
           <button onClick={() => setMenuMobileAberto(true)} aria-label="Abrir menu"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 4, display: 'flex' }}>
             <Menu size={20} />

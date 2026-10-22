@@ -1335,3 +1335,45 @@ export const notificacoesConfigService = {
     await setDoc(doc(db, 'configuracoes', 'notificacoesBriefing'), config)
   },
 }
+
+// ─── Relatórios automáticos ─────────────────────────────────────────────────
+export type RelatorioTipo = 'diario' | 'semanal' | 'mensal'
+
+export interface RelatorioSecao {
+  titulo: string
+  texto: string
+}
+
+export interface RelatorioAcao {
+  prioridade: 'P1' | 'P2' | 'P3'
+  texto: string
+}
+
+// `dados` guarda os factos brutos (calculados de forma determinística, sem IA)
+// que serviram de base ao relatório — fica disponível para auditoria/transparência,
+// mesmo que a UI não mostre tudo.
+export interface Relatorio {
+  id?: string
+  tipo: RelatorioTipo
+  periodoInicio: string
+  periodoFim: string
+  secoes: RelatorioSecao[]
+  acoes: RelatorioAcao[]
+  dados: Record<string, unknown>
+  geradoEm?: Timestamp
+}
+
+export const RELATORIO_TIPO_LABEL: Record<RelatorioTipo, string> = {
+  diario: 'Diário', semanal: 'Semanal', mensal: 'Mensal',
+}
+
+export const relatoriosService = {
+  async getAll(): Promise<Relatorio[]> {
+    const snap = await getDocs(collection(db, 'relatorios'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Relatorio))
+  },
+  async getById(id: string): Promise<Relatorio | null> {
+    const snap = await getDoc(doc(db, 'relatorios', id))
+    return snap.exists() ? { id: snap.id, ...snap.data() } as Relatorio : null
+  },
+}

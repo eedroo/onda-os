@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import {
   Home, BarChart2, Users, ClipboardCheck, Calendar,
   FileText, PenLine, Briefcase, Kanban, CheckSquare,
-  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X, ClipboardList, Bell, BellOff
+  Coins, BookOpen, Bot, Wrench, Settings, Sun, Moon, LogOut, LineChart, X, ClipboardList, Bell, BellOff, FileBarChart
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { useAuth } from '@/lib/auth'
@@ -42,6 +42,7 @@ const nav = [
     items: [
       { href: '/financeiro',     icon: Coins,          label: 'Financeiro' },
       { href: '/kpis',           icon: LineChart,      label: 'KPIs' },
+      { href: '/relatorios',     icon: FileBarChart,   label: 'Relatórios' },
       { href: '/briefings',      icon: ClipboardList,  label: 'Briefings' },
       { href: '/knowledge-base', icon: BookOpen,       label: 'Knowledge Base' },
       { href: '/ia-agentes',     icon: Bot,            label: 'IA & Agentes' },
@@ -100,7 +101,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen?: boolean; o
   return (
     <>
       {mobileOpen && <div className="onda-sidebar-backdrop" onClick={onCloseMobile} />}
-      <aside className={`onda-sidebar${mobileOpen ? ' open' : ''}`} style={{
+      <aside className={`onda-sidebar onda-no-print${mobileOpen ? ' open' : ''}`} style={{
         width: 216,
         flexShrink: 0,
         backgroundColor: 'var(--sidebar-bg)',
