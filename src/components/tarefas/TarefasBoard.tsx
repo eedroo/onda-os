@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
@@ -75,13 +75,17 @@ interface TarefasBoardProps {
   onRemover?: (id: string) => void
   onCriar?: (dados: NovaTarefaDados) => void | Promise<void>
   onReordenar?: (idsOrdenados: string[]) => void
+  // Duplica a tarefa `origemId` com data-limite `novaData` — usado ao
+  // arrastar segurando Alt no calendário. Sem isto, Alt+arrastar comporta-se
+  // como um arrastar normal (move em vez de duplicar).
+  onDuplicar?: (origemId: string, novaData: string) => void
   clienteNomePorId?: Record<string, string>
   mesInicial?: number
   anoInicial?: number
 }
 
 export default function TarefasBoard({
-  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, onReordenar, clienteNomePorId,
+  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, onReordenar, onDuplicar, clienteNomePorId,
   mesInicial, anoInicial,
 }: TarefasBoardProps) {
   const [vista, setVista] = useState<Vista>('status')
@@ -90,6 +94,7 @@ export default function TarefasBoard({
   const [novoTitulo, setNovoTitulo] = useState('')
   const [ordenacaoData, setOrdenacaoData] = useState<DirecaoData | null>(null)
   const [semanaOffset, setSemanaOffset] = useState(0)
+  const altAtivoRef = useRef(false)
   const hoje = new Date()
   const [mes, setMes] = useState(mesInicial ?? hoje.getMonth() + 1)
   const [ano, setAno] = useState(anoInicial ?? hoje.getFullYear())
@@ -97,6 +102,19 @@ export default function TarefasBoard({
   function cicloOrdenacaoData() {
     setOrdenacaoData(d => d === null ? 'asc' : d === 'asc' ? 'desc' : null)
   }
+
+  // Segue o estado da tecla Alt num ref (não em state) para não re-renderizar
+  // a cada keydown/keyup — só é lido no momento em que um drag termina.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) { if (e.key === 'Alt') altAtivoRef.current = true }
+    function onKeyUp(e: KeyboardEvent) { if (e.key === 'Alt') altAtivoRef.current = false }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
 
   function abrirCriacao(chave: string) { setCriandoChave(chave); setNovoTitulo('') }
   function cancelarCriacao() { setCriandoChave(null); setNovoTitulo('') }
@@ -399,7 +417,7 @@ export default function TarefasBoard({
         <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 3 }}>{dia}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {itens.map(t => (
-            <DraggableTarefaChip key={t.id} tarefa={t} onToggle={onToggle} dataISO={dataISO} />
+            <DraggableTarefaChip key={t.id} tarefa={t} onToggle={onToggle} />
           ))}
         </div>
         {onCriar && (
@@ -424,7 +442,7 @@ export default function TarefasBoard({
     )
   }
 
-  function DraggableTarefaChip({ tarefa, onToggle: onToggleChip, dataISO }: { tarefa: Tarefa; onToggle: (id: string, status: TarefaStatus) => void; dataISO: string }) {
+  function DraggableTarefaChip({ tarefa, onToggle: onToggleChip }: { tarefa: Tarefa; onToggle: (id: string, status: TarefaStatus) => void }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: tarefa.id! })
     return (
       <div ref={setNodeRef} {...attributes} {...listeners}
@@ -438,8 +456,25 @@ export default function TarefasBoard({
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           opacity: isDragging ? 0 : 1,
           transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-        }}
-        data-data-iso={dataISO}>
+        }}>
+        {tarefa.titulo}
+      </div>
+    )
+  }
+
+  function SemDataLinha({ tarefa }: { tarefa: Tarefa }) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: tarefa.id! })
+    return (
+      <div ref={setNodeRef} {...attributes} {...listeners}
+        onClick={() => onToggle(tarefa.id!, tarefa.status)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', borderRadius: 4, cursor: 'grab',
+          fontSize: 12, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)',
+          textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none',
+          opacity: isDragging ? 0 : 1,
+          transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        }}>
+        {tarefa.status === 'CONCLUIDA' ? <CheckSquare size={13} style={{ color: 'var(--brand)' }} /> : <Square size={13} style={{ color: 'var(--text-faint)' }} />}
         {tarefa.titulo}
       </div>
     )
@@ -464,7 +499,12 @@ export default function TarefasBoard({
       if (!match) return
       const dataISO = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
       const tarefa = tarefas.find(t => t.id === String(active.id))
-      if (tarefa && tarefa.dataLimite !== dataISO) onUpdateDataLimite(String(active.id), dataISO)
+      if (!tarefa) return
+      if (altAtivoRef.current && onDuplicar) {
+        onDuplicar(tarefa.id!, dataISO)
+      } else if (tarefa.dataLimite !== dataISO) {
+        onUpdateDataLimite(String(active.id), dataISO)
+      }
     }
 
     return (
@@ -489,12 +529,12 @@ export default function TarefasBoard({
           {semData.length > 0 && (
             <div className="card" style={{ padding: 12 }}>
               <div className="sec-title">Sem data definida ({semData.length})</div>
+              <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 6 }}>
+                Arrasta para um dia do calendário para definir a data-limite. Segura Alt para duplicar em vez de mover.
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {semData.map(t => (
-                  <div key={t.id} onClick={() => onToggle(t.id!, t.status)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', cursor: 'pointer', fontSize: 12, color: t.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: t.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
-                    {t.status === 'CONCLUIDA' ? <CheckSquare size={13} style={{ color: 'var(--brand)' }} /> : <Square size={13} style={{ color: 'var(--text-faint)' }} />}
-                    {t.titulo}
-                  </div>
+                  <SemDataLinha key={t.id} tarefa={t} />
                 ))}
               </div>
             </div>

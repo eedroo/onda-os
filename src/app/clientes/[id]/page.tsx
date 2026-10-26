@@ -147,6 +147,23 @@ export default function ClientePage() {
     await recalcularProgressoDoProjeto(atualizadas, alvo.id!)
   }
 
+  async function duplicarTarefaComData(origemId: string, novaData: string) {
+    const original = tarefas.find(t => t.id === origemId)
+    if (!original) return
+    const doProjeto = tarefas.filter(t => t.projetoId === original.projetoId)
+    const ordem = doProjeto.length ? Math.max(...doProjeto.map(t => t.ordem)) + 1 : 1
+    const dadosTarefa = {
+      projetoId: original.projetoId, clienteId: original.clienteId, titulo: original.titulo,
+      descricao: original.descricao, categoria: original.categoria, frequencia: original.frequencia,
+      servicoId: original.servicoId, servicoNome: original.servicoNome, prioridade: original.prioridade,
+      status: 'PENDENTE' as TarefaStatus, ordem, dataLimite: novaData,
+    }
+    const novoId = await tarefasService.create(dadosTarefa)
+    const atualizadas = [...tarefas, { id: novoId, ...dadosTarefa }]
+    setTarefas(atualizadas)
+    await recalcularProgressoDoProjeto(atualizadas, original.projetoId)
+  }
+
   async function adicionarLink() {
     if (!novoLink.label.trim() || !novoLink.url.trim() || !cliente) return
     const url = /^https?:\/\//i.test(novoLink.url) ? novoLink.url : `https://${novoLink.url}`
@@ -388,6 +405,7 @@ export default function ClientePage() {
                 onSetCategoria={setCategoriaTarefa}
                 onUpdateDataLimite={updateDataLimiteTarefa}
                 onCriar={criarTarefaInline}
+                onDuplicar={duplicarTarefaComData}
               />
             </div>
           )}

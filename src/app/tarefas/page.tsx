@@ -63,6 +63,23 @@ export default function TarefasPage() {
     await projetosService.update(projetoId, { progresso: Math.round((conc / doProjeto.length) * 100) })
   }
 
+  async function duplicarTarefaComData(origemId: string, novaData: string) {
+    const original = tarefas.find(t => t.id === origemId)
+    if (!original) return
+    const doProjeto = tarefas.filter(t => t.projetoId === original.projetoId)
+    const ordem = doProjeto.length ? Math.max(...doProjeto.map(t => t.ordem)) + 1 : 1
+    const dadosTarefa = {
+      projetoId: original.projetoId, clienteId: original.clienteId, titulo: original.titulo,
+      descricao: original.descricao, categoria: original.categoria, frequencia: original.frequencia,
+      servicoId: original.servicoId, servicoNome: original.servicoNome, prioridade: original.prioridade,
+      status: 'PENDENTE' as TarefaStatus, ordem, dataLimite: novaData,
+    }
+    const novoId = await tarefasService.create(dadosTarefa)
+    const atualizadas = [...tarefas, { id: novoId, ...dadosTarefa }]
+    setTarefas(atualizadas)
+    await recalcularProgressoDoProjeto(atualizadas, original.projetoId)
+  }
+
   async function setStatus(tarefaId: string, novoStatus: TarefaStatus) {
     const atualizadas = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t)
     setTarefas(atualizadas)
@@ -115,6 +132,7 @@ export default function TarefasPage() {
             onSetCategoria={setCategoria}
             onUpdateDataLimite={updateDataLimite}
             onCriar={clienteFiltro !== 'TODOS' ? criarTarefaInline : undefined}
+            onDuplicar={duplicarTarefaComData}
             clienteNomePorId={clienteFiltro === 'TODOS' ? clienteNomePorId : undefined}
           />
         )}
