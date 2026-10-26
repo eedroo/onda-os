@@ -484,11 +484,9 @@ export default function TarefasBoard({
     const diasNoMes = new Date(ano, mes, 0).getDate()
     const diaSemanaInicio = new Date(ano, mes - 1, 1).getDay()
 
-    const semData: Tarefa[] = tarefas.filter(t => {
-      if (!t.dataLimite) return true
-      const [y, m] = t.dataLimite.split('-').map(Number)
-      return !(y === ano && m === mes)
-    })
+    // Só tarefas verdadeiramente sem data-limite — as que têm data noutro mês
+    // continuam com a sua data, só não aparecem na grelha deste mês.
+    const semData: Tarefa[] = tarefas.filter(t => !t.dataLimite)
 
     const celulas: (number | null)[] = [...Array(diaSemanaInicio).fill(null), ...Array.from({ length: diasNoMes }, (_, i) => i + 1)]
 
