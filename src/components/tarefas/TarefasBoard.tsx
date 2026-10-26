@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
-import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors, PointerSensor, type DragEndEvent } from '@dnd-kit/core'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
 import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
 import { SortableItem } from '@/components/dnd/SortableItem'
@@ -490,6 +490,12 @@ export default function TarefasBoard({
 
     const celulas: (number | null)[] = [...Array(diaSemanaInicio).fill(null), ...Array.from({ length: diasNoMes }, (_, i) => i + 1)]
 
+    // Sem um limiar de distância, o dnd-kit interpreta qualquer micro-movimento
+    // do rato num clique como o início de um arrastar — isso engolia o clique
+    // de concluir/toggle nas tarefas arrastáveis (chips do dia e lista "sem
+    // data"). As outras vistas usam o mesmo limiar via useKanbanDnd.
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+
     function handleDragEnd(e: DragEndEvent) {
       const { active, over } = e
       if (!over) return
@@ -506,7 +512,7 @@ export default function TarefasBoard({
     }
 
     return (
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button onClick={() => { if (mes === 1) { setMes(12); setAno(a => a - 1) } else setMes(m => m - 1) }} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ChevronLeft size={13} /></button>
