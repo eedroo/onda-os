@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight, Plus, Sparkle } from 'lucide-react'
+import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
 import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
@@ -32,13 +32,38 @@ export const STATUS_OPTIONS: { value: TarefaStatus; label: string; color: string
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const NOMES_DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
 
-type Vista = 'status' | 'calendario' | 'categoria'
+type Vista = 'status' | 'calendario' | 'categoria' | 'semana'
 const VISTAS: { id: Vista; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'status', label: 'Status', icon: LayoutGrid },
+  { id: 'semana', label: 'Semana', icon: CalendarDays },
   { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
   { id: 'categoria', label: 'Categoria', icon: Tag },
 ]
+
+type DirecaoData = 'asc' | 'desc'
+
+// Ordena tarefas por data-limite (sem data fica sempre no fim), para os
+// botões "Ordenar por data" nos kanbans de Status e Categoria. Pré-ordenar
+// o array de entrada do useKanbanDnd é suficiente — o hook preserva a
+// ordem de inserção ao agrupar por coluna.
+function compararPorData(a: Tarefa, b: Tarefa, direcao: DirecaoData): number {
+  if (!a.dataLimite && !b.dataLimite) return 0
+  if (!a.dataLimite) return 1
+  if (!b.dataLimite) return -1
+  return direcao === 'asc' ? a.dataLimite.localeCompare(b.dataLimite) : b.dataLimite.localeCompare(a.dataLimite)
+}
+
+// Segunda-feira da semana que contém `data`.
+function inicioSemana(data: Date): Date {
+  const d = new Date(data)
+  const dia = d.getDay()
+  const deslocamento = dia === 0 ? -6 : 1 - dia
+  d.setDate(d.getDate() + deslocamento)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
 
 interface TarefasBoardProps {
   tarefas: Tarefa[]
@@ -63,9 +88,15 @@ export default function TarefasBoard({
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [criandoChave, setCriandoChave] = useState<string | null>(null)
   const [novoTitulo, setNovoTitulo] = useState('')
+  const [ordenacaoData, setOrdenacaoData] = useState<DirecaoData | null>(null)
+  const [semanaOffset, setSemanaOffset] = useState(0)
   const hoje = new Date()
   const [mes, setMes] = useState(mesInicial ?? hoje.getMonth() + 1)
   const [ano, setAno] = useState(anoInicial ?? hoje.getFullYear())
+
+  function cicloOrdenacaoData() {
+    setOrdenacaoData(d => d === null ? 'asc' : d === 'asc' ? 'desc' : null)
+  }
 
   function abrirCriacao(chave: string) { setCriandoChave(chave); setNovoTitulo('') }
   function cancelarCriacao() { setCriandoChave(null); setNovoTitulo('') }
@@ -176,8 +207,9 @@ export default function TarefasBoard({
 
   function KanbanStatus() {
     const colunas = STATUS_OPTIONS.map(o => o.value)
+    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
-      itens: tarefas, colunas,
+      itens: itensOrdenados, colunas,
       getId: t => t.id!,
       getColuna: t => t.status,
       onMudarColuna: (id, novoStatus) => onSetStatus(id, novoStatus as TarefaStatus),
@@ -219,8 +251,9 @@ export default function TarefasBoard({
   function KanbanCategoria() {
     const nomesConfigurados = categoriasConfig.map(c => c.nome)
     const colunas = [...nomesConfigurados, '__nenhuma__']
+    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
-      itens: tarefas, colunas,
+      itens: itensOrdenados, colunas,
       getId: t => t.id!,
       getColuna: t => nomesConfigurados.includes(t.categoria) ? t.categoria : '__nenhuma__',
       onMudarColuna: onSetCategoria ? (id, novaCategoria) => onSetCategoria(id, novaCategoria === '__nenhuma__' ? '' : novaCategoria) : undefined,
@@ -272,6 +305,72 @@ export default function TarefasBoard({
           {categoriasConfig.length === 0 && semCategoria.length === 0 && !onCriar && (
             <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)', width: '100%' }}>Sem categorias configuradas</div>
           )}
+        </div>
+        <DragOverlay>{tarefaAtiva ? <div style={{ width: 240 }}>{renderCartao(tarefaAtiva, true)}</div> : null}</DragOverlay>
+      </DndContext>
+    )
+  }
+
+  function KanbanSemana() {
+    const segunda = inicioSemana(new Date())
+    segunda.setDate(segunda.getDate() + semanaOffset * 7)
+    const dias = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(segunda)
+      d.setDate(d.getDate() + i)
+      return d
+    })
+    const colunas = dias.map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+    const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+
+    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
+    const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
+      itens: itensOrdenados, colunas,
+      getId: t => t.id!,
+      getColuna: t => t.dataLimite || '',
+      onMudarColuna: (id, novaData) => onUpdateDataLimite(id, novaData),
+      onReordenar: (_coluna, ids) => onReordenar?.(ids),
+    })
+    const tarefaAtiva = activeId ? tarefas.find(t => t.id === activeId) : null
+
+    return (
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <button onClick={() => setSemanaOffset(o => o - 1)} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ChevronLeft size={13} /></button>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', minWidth: 160, textAlign: 'center' }}>
+            {dias[0].getDate()} {MESES[dias[0].getMonth()].slice(0, 3)} – {dias[6].getDate()} {MESES[dias[6].getMonth()].slice(0, 3)} {dias[6].getFullYear()}
+          </div>
+          <button onClick={() => setSemanaOffset(o => o + 1)} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ChevronRight size={13} /></button>
+          {semanaOffset !== 0 && (
+            <button onClick={() => setSemanaOffset(0)} className="btn btn-ghost" style={{ fontSize: 11 }}>Esta semana</button>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, minWidth: 0, width: '100%' }}>
+          {dias.map((d, i) => {
+            const iso = colunas[i]
+            const items = grupos[iso] || []
+            const ehHoje = iso === hojeISO
+            return (
+              <DroppableColumn key={iso} id={iso} items={items.map(t => t.id!)}>
+                {isOver => (
+                  <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={colunaEstilo(ehHoje ? 'var(--brand)' : 'var(--border-strong)', isOver)}>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: ehHoje ? 'var(--brand)' : 'var(--text-primary)' }}>
+                        {NOMES_DIAS_SEMANA[i]} <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>{d.getDate()}/{d.getMonth() + 1}</span>
+                      </span>
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}>{items.length}</span>
+                    </div>
+                    {items.map(t => (
+                      <SortableItem key={t.id} id={t.id!}>{renderCartao(t, true)}</SortableItem>
+                    ))}
+                    {items.length === 0 && (
+                      <div style={{ padding: '16px 10px', textAlign: 'center', fontSize: 11, color: isOver ? 'var(--accent-blue)' : 'var(--text-faint)', border: `1px dashed ${isOver ? 'var(--brand)' : 'var(--border-subtle)'}`, borderRadius: 8 }}>{isOver ? 'Largar aqui' : 'Vazio'}</div>
+                    )}
+                    {renderAdicionar(`semana-${iso}`, { status: 'PENDENTE', categoria: '', dataLimite: iso })}
+                  </div>
+                )}
+              </DroppableColumn>
+            )
+          })}
         </div>
         <DragOverlay>{tarefaAtiva ? <div style={{ width: 240 }}>{renderCartao(tarefaAtiva, true)}</div> : null}</DragOverlay>
       </DndContext>
@@ -407,7 +506,7 @@ export default function TarefasBoard({
 
   return (
     <div onClick={() => openDropdown && setOpenDropdown(null)} style={{ width: '100%', minWidth: 0 }}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
         {VISTAS.map(v => {
           const Icon = v.icon
           return (
@@ -417,6 +516,13 @@ export default function TarefasBoard({
             </button>
           )
         })}
+        {(vista === 'status' || vista === 'categoria') && (
+          <button onClick={cicloOrdenacaoData} title="Ordenar tarefas por data-limite"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', marginLeft: 'auto', border: ordenacaoData ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: ordenacaoData ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: ordenacaoData ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            {ordenacaoData === 'asc' ? <ArrowUp size={12} /> : ordenacaoData === 'desc' ? <ArrowDown size={12} /> : <ArrowUpDown size={12} />}
+            {ordenacaoData === 'asc' ? 'Data crescente' : ordenacaoData === 'desc' ? 'Data decrescente' : 'Ordenar por data'}
+          </button>
+        )}
       </div>
 
       {tarefas.length === 0 && !onCriar ? (
@@ -426,6 +532,7 @@ export default function TarefasBoard({
           {vista === 'status' && <KanbanStatus />}
           {vista === 'categoria' && <KanbanCategoria />}
           {vista === 'calendario' && <CalendarioView />}
+          {vista === 'semana' && <KanbanSemana />}
         </>
       )}
     </div>
