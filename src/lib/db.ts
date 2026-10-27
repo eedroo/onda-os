@@ -137,6 +137,8 @@ export interface Projeto {
   // Ordem dentro da coluna de status no kanban de projectos (drag-and-drop).
   // Projectos antigos sem este campo caem no fim da coluna.
   ordem?: number
+  // Usada na timeline de projetos — projetos antigos sem isto tratam-se como NORMAL.
+  prioridade?: Prioridade
   notas?: string; createdAt?: Timestamp
 }
 
