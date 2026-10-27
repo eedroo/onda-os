@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown, EyeOff, Eye } from 'lucide-react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors, PointerSensor, type DragEndEvent } from '@dnd-kit/core'
 import type { Tarefa, TarefaStatus, Categoria } from '@/lib/db'
 import { useKanbanDnd } from '@/components/dnd/useKanbanDnd'
@@ -125,6 +125,7 @@ export default function TarefasBoard({
   const [novoTitulo, setNovoTitulo] = useState('')
   const [ordenacaoData, setOrdenacaoData] = useState<DirecaoData | null>(null)
   const [filtroData, setFiltroData] = useState<FiltroData>('todas')
+  const [esconderConcluidas, setEsconderConcluidas] = useState(false)
   const [semanaOffset, setSemanaOffset] = useState(0)
   const altAtivoRef = useRef(false)
   const hoje = new Date()
@@ -257,7 +258,8 @@ export default function TarefasBoard({
 
   function KanbanStatus() {
     const colunas = STATUS_OPTIONS.map(o => o.value)
-    const tarefasFiltradas = filtroData === 'todas' ? tarefas : tarefas.filter(t => passaFiltroData(t, filtroData, hoje))
+    const tarefasFiltradas = (filtroData === 'todas' ? tarefas : tarefas.filter(t => passaFiltroData(t, filtroData, hoje)))
+      .filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
     const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
@@ -302,7 +304,8 @@ export default function TarefasBoard({
   function KanbanCategoria() {
     const nomesConfigurados = categoriasConfig.map(c => c.nome)
     const colunas = [...nomesConfigurados, '__nenhuma__']
-    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
+    const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
+    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
@@ -373,7 +376,8 @@ export default function TarefasBoard({
     const colunas = dias.map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
     const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
 
-    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
+    const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
+    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
@@ -593,9 +597,15 @@ export default function TarefasBoard({
             </button>
           )
         })}
+        {(vista === 'status' || vista === 'categoria' || vista === 'semana') && (
+          <button onClick={() => setEsconderConcluidas(v => !v)} title="Esconder tarefas concluídas"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', marginLeft: 'auto', border: esconderConcluidas ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: esconderConcluidas ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: esconderConcluidas ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            {esconderConcluidas ? <EyeOff size={12} /> : <Eye size={12} />} Esconder concluídas
+          </button>
+        )}
         {(vista === 'status' || vista === 'categoria') && (
           <button onClick={cicloOrdenacaoData} title="Ordenar tarefas por data-limite"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', marginLeft: 'auto', border: ordenacaoData ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: ordenacaoData ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: ordenacaoData ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: ordenacaoData ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: ordenacaoData ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: ordenacaoData ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
             {ordenacaoData === 'asc' ? <ArrowUp size={12} /> : ordenacaoData === 'desc' ? <ArrowDown size={12} /> : <ArrowUpDown size={12} />}
             {ordenacaoData === 'asc' ? 'Data crescente' : ordenacaoData === 'desc' ? 'Data decrescente' : 'Ordenar por data'}
           </button>

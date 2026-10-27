@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, Fragment } from 'react'
-import { Kanban, Plus, Calendar, Loader2, Info, GanttChart, ChevronLeft, ChevronRight, ExternalLink, Sparkle } from 'lucide-react'
+import { Kanban, Plus, Calendar, Loader2, Info, GanttChart, ChevronLeft, ChevronRight, ExternalLink, Sparkle, EyeOff, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { projetosService, clientesService, type Projeto, type Cliente, type ProjectStatus, type Prioridade } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -52,6 +52,7 @@ export default function ProjetosPage() {
   const hojeRef = new Date()
   const [anchorMes, setAnchorMes] = useState(hojeRef.getMonth() + 1)
   const [anchorAno, setAnchorAno] = useState(hojeRef.getFullYear())
+  const [esconderConcluidosTimeline, setEsconderConcluidosTimeline] = useState(false)
 
   useEffect(() => {
     load()
@@ -183,6 +184,7 @@ export default function ProjetosPage() {
     const chaveJanela = new Set(janela.map(j => `${j.ano}-${j.mes}`))
     const projetosNaJanela = projetos
       .filter(p => chaveJanela.has(`${p.ano}-${p.mes}`))
+      .filter(p => !esconderConcluidosTimeline || p.status !== 'CONCLUIDO')
       .sort((a, b) => (a.ano * 12 + a.mes) - (b.ano * 12 + b.mes) || a.nome.localeCompare(b.nome))
 
     function iniciarEdicaoProgresso(p: Projeto) {
@@ -206,6 +208,10 @@ export default function ProjetosPage() {
           </div>
           <button onClick={() => deslocarAncora(1)} className="btn btn-ghost" style={{ padding: '4px 8px' }}><ChevronRight size={13} /></button>
           <button onClick={irParaHoje} className="btn btn-ghost" style={{ fontSize: 11 }}>Hoje</button>
+          <button onClick={() => setEsconderConcluidosTimeline(v => !v)} className="btn btn-ghost"
+            style={{ fontSize: 11, marginLeft: 'auto', color: esconderConcluidosTimeline ? 'var(--accent-blue)' : undefined }}>
+            {esconderConcluidosTimeline ? <EyeOff size={12} /> : <Eye size={12} />} Esconder concluídos
+          </button>
         </div>
 
         {projetosNaJanela.length === 0 ? (
