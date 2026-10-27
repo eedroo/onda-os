@@ -493,6 +493,7 @@ export default function TarefasBoard({
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           opacity: isDragging ? 0 : 1,
           transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+          touchAction: 'none',
         }}>
         {tarefa.titulo}
       </div>
@@ -510,6 +511,7 @@ export default function TarefasBoard({
           textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none',
           opacity: isDragging ? 0 : 1,
           transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+          touchAction: 'none',
         }}>
         {tarefa.status === 'CONCLUIDA' ? <CheckSquare size={13} style={{ color: 'var(--brand)' }} /> : <Square size={13} style={{ color: 'var(--text-faint)' }} />}
         {tarefa.titulo}

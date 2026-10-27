@@ -11,6 +11,10 @@ export function SortableItem({ id, children, disabled }: { id: string; children:
     transition,
     opacity: isDragging ? 0 : 1,
     cursor: disabled ? 'default' : 'grab',
+    // Sem isto, o toque num cartão fica ambíguo entre "arrastar" e "scroll
+    // nativo da página" em touchscreens — o browser e o dnd-kit disputam o
+    // gesto, o que pode deixar o toque preso e a página a parecer travada.
+    touchAction: disabled ? undefined : 'none',
   }
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
