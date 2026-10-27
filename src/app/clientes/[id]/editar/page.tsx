@@ -5,9 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { Loader2, Plus, Trash2, Info, Save, Star, ChevronUp, ChevronDown, X } from 'lucide-react'
 import {
   clientesService, planosService, servicosService, asPlano, SERVICOS_BASE,
-  KPIS_BIBLIOTECA, KPI_CATEGORIA_INFO, kpisPorOmissao,
+  seedKpiDefinicoes, KPI_CATEGORIA_INFO, kpisPorOmissao,
   type Plano, type ClienteStatus, type ServicoCliente, type PlanoConfig, type Servico,
-  type KPICliente, type KPICategoria,
+  type KPICliente, type KPICategoria, type KPIDefinicao,
 } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
 
@@ -40,15 +40,17 @@ export default function EditarClientePage() {
   const [planosConfig, setPlanosConfig] = useState<PlanoConfig[]>([])
   const [servicosConfig, setServicosConfig] = useState<Servico[]>([])
   const [kpis, setKpis] = useState<KPICliente[]>([])
+  const [kpiDefinicoes, setKpiDefinicoes] = useState<KPIDefinicao[]>([])
   const [showKpiSelector, setShowKpiSelector] = useState(false)
 
   useEffect(() => {
     async function load() {
-      const [cliente, planos, servicosDisponiveis] = await Promise.all([
-        clientesService.getById(id), planosService.getAll(), servicosService.getAll(),
+      const [cliente, planos, servicosDisponiveis, definicoesKpi] = await Promise.all([
+        clientesService.getById(id), planosService.getAll(), servicosService.getAll(), seedKpiDefinicoes(),
       ])
       setPlanosConfig(planos)
       setServicosConfig(servicosDisponiveis)
+      setKpiDefinicoes(definicoesKpi)
       if (!cliente) { setNaoEncontrado(true); setCarregando(false); return }
       setForm({
         empresa: cliente.empresa || '', contacto: cliente.contacto || '',
@@ -116,7 +118,7 @@ export default function EditarClientePage() {
   }
 
   function adicionarKpi(defId: string) {
-    const def = KPIS_BIBLIOTECA.find(d => d.id === defId)
+    const def = kpiDefinicoes.find(d => d.id === defId)
     if (!def) return
     setKpis(k => [...k, {
       kpiId: def.id, nome: def.nome, unidade: def.unidade, categoria: def.categoria,
@@ -318,7 +320,7 @@ export default function EditarClientePage() {
             {showKpiSelector && (
               <div style={{ marginBottom: 12, padding: 10, backgroundColor: 'var(--bg-input)', borderRadius: 8, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflow: 'auto' }}>
                 {(Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]).map(cat => {
-                  const disponiveis = KPIS_BIBLIOTECA.filter(d => d.categoria === cat && !kpis.some(k => k.kpiId === d.id))
+                  const disponiveis = kpiDefinicoes.filter(d => d.categoria === cat && !kpis.some(k => k.kpiId === d.id))
                   if (!disponiveis.length) return null
                   return (
                     <div key={cat}>
@@ -336,7 +338,7 @@ export default function EditarClientePage() {
                     </div>
                   )
                 })}
-                {KPIS_BIBLIOTECA.every(d => kpis.some(k => k.kpiId === d.id)) && (
+                {kpiDefinicoes.every(d => kpis.some(k => k.kpiId === d.id)) && (
                   <div style={{ fontSize: 11, color: 'var(--text-faint)', textAlign: 'center', padding: '8px 0' }}>Todos os KPIs já foram adicionados</div>
                 )}
               </div>

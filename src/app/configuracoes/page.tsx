@@ -6,21 +6,24 @@ import {
   categoriasService, servicosService, planosService, seedConfiguracoes, usuariosService,
   briefingPerguntasService, BRIEFING_CATEGORIA_INFO, BRIEFING_TIPO_LABEL,
   notificacoesConfigService,
+  kpiDefinicoesService, seedKpiDefinicoes, KPI_CATEGORIA_INFO,
   type Categoria, type Servico, type TarefaTemplate, type PlanoConfig, type Frequencia,
   type Usuario, type PerfilRole,
   type BriefingPergunta, type BriefingCategoria, type BriefingPerguntaTipo,
   type NotificacoesBriefingConfig,
+  type KPIDefinicao, type KPICategoria, type KPIUnidade,
 } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/ui/PageHeader'
 
-type Tab = 'categorias' | 'servicos' | 'planos' | 'briefings' | 'notificacoes' | 'utilizadores'
+type Tab = 'categorias' | 'servicos' | 'planos' | 'briefings' | 'kpis' | 'notificacoes' | 'utilizadores'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categorias', label: 'Categorias' },
   { id: 'servicos', label: 'Serviços' },
   { id: 'planos', label: 'Planos' },
   { id: 'briefings', label: 'Briefings' },
+  { id: 'kpis', label: 'KPIs' },
   { id: 'notificacoes', label: 'Notificações' },
   { id: 'utilizadores', label: 'Utilizadores' },
 ]
@@ -43,6 +46,7 @@ export default function ConfiguracoesPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [briefingPerguntas, setBriefingPerguntas] = useState<BriefingPergunta[]>([])
   const [notificacoesConfig, setNotificacoesConfig] = useState<NotificacoesBriefingConfig>({ email: true, push: true })
+  const [kpiDefinicoes, setKpiDefinicoes] = useState<KPIDefinicao[]>([])
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const ehAdmin = perfil?.role === 'ADMIN'
@@ -61,7 +65,8 @@ export default function ConfiguracoesPage() {
         await seedConfiguracoes()
         ;[c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
       }
-      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp); setNotificacoesConfig(nc)
+      const kd = await seedKpiDefinicoes()
+      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp); setNotificacoesConfig(nc); setKpiDefinicoes(kd)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -109,6 +114,9 @@ export default function ConfiguracoesPage() {
           )}
           {tab === 'briefings' && (
             <BriefingsTab perguntas={briefingPerguntas} onReload={load} notify={notify} />
+          )}
+          {tab === 'kpis' && (
+            <KpisTab definicoes={kpiDefinicoes} onReload={load} notify={notify} />
           )}
           {tab === 'notificacoes' && (
             <NotificacoesTab config={notificacoesConfig} onChange={setNotificacoesConfig} notify={notify} />
@@ -666,6 +674,133 @@ function BriefingsTab({ perguntas, onReload, notify }: {
               </div>
               <button onClick={() => abrirEditar(p)} className="btn btn-ghost" style={{ padding: '4px 8px', flexShrink: 0 }}><Pencil size={12} /></button>
               <button onClick={() => eliminar(p)} className="btn btn-danger" style={{ padding: '4px 8px', flexShrink: 0 }}><Trash2 size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Tab: KPIs ───────────────────────────────────────────────────────────────
+
+const KPI_UNIDADES: KPIUnidade[] = ['numero', 'percentagem', 'estrelas', 'euros']
+const KPI_UNIDADE_LABEL: Record<KPIUnidade, string> = {
+  numero: 'Número', percentagem: 'Percentagem (%)', estrelas: 'Estrelas', euros: 'Euros (€)',
+}
+const KPI_CATEGORIAS = Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]
+
+function KpisTab({ definicoes, onReload, notify }: {
+  definicoes: KPIDefinicao[]; onReload: () => Promise<void>; notify: (m: string) => void
+}) {
+  const [categoria, setCategoria] = useState<KPICategoria>('comercial')
+  const [showForm, setShowForm] = useState(false)
+  const [editando, setEditando] = useState<KPIDefinicao | null>(null)
+  const [nome, setNome] = useState('')
+  const [unidade, setUnidade] = useState<KPIUnidade>('numero')
+  const [descricao, setDescricao] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const daCategoria = definicoes.filter(d => d.categoria === categoria).sort((a, b) => a.nome.localeCompare(b.nome))
+
+  function abrirNovo() {
+    setEditando(null)
+    setNome(''); setUnidade('numero'); setDescricao('')
+    setShowForm(true)
+  }
+
+  function abrirEditar(d: KPIDefinicao) {
+    setEditando(d)
+    setNome(d.nome); setUnidade(d.unidade); setDescricao(d.descricao || '')
+    setShowForm(true)
+  }
+
+  async function guardar() {
+    if (!nome.trim()) return
+    setSaving(true)
+    try {
+      if (editando) {
+        await kpiDefinicoesService.update(editando.id!, { nome, unidade, descricao: descricao || undefined })
+        notify('KPI actualizado')
+      } else {
+        await kpiDefinicoesService.create({ nome, unidade, categoria, descricao: descricao || undefined })
+        notify('KPI criado')
+      }
+      setShowForm(false)
+      await onReload()
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
+  }
+
+  async function eliminar(d: KPIDefinicao) {
+    if (!confirm(`Eliminar o KPI "${d.nome}"? Clientes que já o tenham configurado deixam de o conseguir actualizar.`)) return
+    await kpiDefinicoesService.delete(d.id!)
+    notify('KPI eliminado')
+    await onReload()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        Métricas disponíveis para acompanhamento mensal dos clientes, por categoria. Ficam disponíveis para escolher na ficha de cada cliente.
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {KPI_CATEGORIAS.map(c => (
+          <button key={c} onClick={() => setCategoria(c)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: categoria === c ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: categoria === c ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: categoria === c ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+            {KPI_CATEGORIA_INFO[c].icon} {KPI_CATEGORIA_INFO[c].label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={abrirNovo} className="btn btn-primary"><Plus size={13} /> Novo KPI</button>
+      </div>
+
+      {showForm && (
+        <div className="card" style={{ padding: 16 }}>
+          <div className="sec-title">{editando ? 'Editar KPI' : 'Novo KPI'} — {KPI_CATEGORIA_INFO[categoria].label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Nome *</label>
+              <input className="input" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Visualizações do perfil" />
+            </div>
+            <div>
+              <label style={labelStyle}>Unidade</label>
+              <select className="select" value={unidade} onChange={e => setUnidade(e.target.value as KPIUnidade)}>
+                {KPI_UNIDADES.map(u => <option key={u} value={u}>{KPI_UNIDADE_LABEL[u]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Descrição (opcional)</label>
+              <input className="input" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Ajuda a lembrar o que este KPI mede" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowForm(false)} className="btn btn-ghost">Cancelar</button>
+              <button onClick={guardar} disabled={saving || !nome.trim()} className="btn btn-primary">
+                {saving ? <Loader2 size={12} className="animate-spin" /> : null} Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {daCategoria.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-faint)', fontSize: 13 }}>Sem KPIs para {KPI_CATEGORIA_INFO[categoria].label} ainda</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {daCategoria.map(d => (
+            <div key={d.id} className="card" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{d.nome}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="pill pill-blue">{KPI_UNIDADE_LABEL[d.unidade]}</span>
+                  {d.descricao && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.descricao}</span>}
+                </div>
+              </div>
+              <button onClick={() => abrirEditar(d)} className="btn btn-ghost" style={{ padding: '4px 8px', flexShrink: 0 }}><Pencil size={12} /></button>
+              <button onClick={() => eliminar(d)} className="btn btn-danger" style={{ padding: '4px 8px', flexShrink: 0 }}><Trash2 size={12} /></button>
             </div>
           ))}
         </div>

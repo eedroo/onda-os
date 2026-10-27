@@ -287,6 +287,37 @@ export function kpisPorOmissao(plano: Plano): KPICliente[] {
   })
 }
 
+// Biblioteca de KPIs editável pelo utilizador (Configurações → KPIs) —
+// começa semeada a partir de KPIS_BIBLIOTECA, com os mesmos IDs, para que
+// as referências em KPIS_POR_PLANO continuem válidas.
+export const kpiDefinicoesService = {
+  async getAll(): Promise<KPIDefinicao[]> {
+    const snap = await getDocs(collection(db, 'kpiDefinicoes'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KPIDefinicao))
+  },
+  async create(data: Omit<KPIDefinicao, 'id'>): Promise<string> {
+    const ref = await addDoc(collection(db, 'kpiDefinicoes'), data)
+    return ref.id
+  },
+  async update(id: string, data: Partial<KPIDefinicao>): Promise<void> {
+    await updateDoc(doc(db, 'kpiDefinicoes', id), data as Record<string, unknown>)
+  },
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'kpiDefinicoes', id))
+  },
+}
+
+export async function seedKpiDefinicoes(): Promise<KPIDefinicao[]> {
+  const existentes = await kpiDefinicoesService.getAll()
+  if (existentes.length > 0) return existentes
+  const batch = writeBatch(db)
+  KPIS_BIBLIOTECA.forEach(def => {
+    batch.set(doc(db, 'kpiDefinicoes', def.id), { nome: def.nome, unidade: def.unidade, categoria: def.categoria })
+  })
+  await batch.commit()
+  return KPIS_BIBLIOTECA
+}
+
 export function formatarKPIValor(valor: number, unidade: KPIUnidade): string {
   if (unidade === 'euros') return `${valor.toLocaleString('pt-PT')}€`
   if (unidade === 'percentagem') return `${valor}%`
