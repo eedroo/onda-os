@@ -27,6 +27,7 @@ export default function EditarClientePage() {
   const [loading, setLoading] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [naoEncontrado, setNaoEncontrado] = useState(false)
+  const [erroCarregamento, setErroCarregamento] = useState(false)
   const [form, setForm] = useState({
     empresa: '', contacto: '', email: '', telefone: '',
     plano: 'GROWTH' as Plano,
@@ -44,26 +45,36 @@ export default function EditarClientePage() {
   const [showKpiSelector, setShowKpiSelector] = useState(false)
 
   useEffect(() => {
+    // seedKpiDefinicoes() alimenta só o seletor "Adicionar KPI" — corre à parte,
+    // sem bloquear a abertura da página se a colecção de KPIs falhar por
+    // alguma razão (ex: regras do Firestore).
+    seedKpiDefinicoes().then(setKpiDefinicoes).catch(e => console.error('Falha ao carregar definições de KPI', e))
+
     async function load() {
-      const [cliente, planos, servicosDisponiveis, definicoesKpi] = await Promise.all([
-        clientesService.getById(id), planosService.getAll(), servicosService.getAll(), seedKpiDefinicoes(),
-      ])
-      setPlanosConfig(planos)
-      setServicosConfig(servicosDisponiveis)
-      setKpiDefinicoes(definicoesKpi)
-      if (!cliente) { setNaoEncontrado(true); setCarregando(false); return }
-      setForm({
-        empresa: cliente.empresa || '', contacto: cliente.contacto || '',
-        email: cliente.email || '', telefone: cliente.telefone || '',
-        plano: cliente.plano, faseSite: (cliente.faseSite as FaseSite) || 'SEM_SITE',
-        mrr: cliente.mrr || 0, status: cliente.status,
-        driveUrl: cliente.driveUrl || '', canvaUrl: cliente.canvaUrl || '',
-        dominioUrl: cliente.dominioUrl || '', whatsappUrl: cliente.whatsappUrl || '',
-        instagram: cliente.instagram || '', notas: cliente.notas || '',
-      })
-      setServicos(cliente.servicos && cliente.servicos.length ? cliente.servicos : SERVICOS_BASE[cliente.plano])
-      setKpis(cliente.kpis && cliente.kpis.length ? cliente.kpis : kpisPorOmissao(cliente.plano))
-      setCarregando(false)
+      try {
+        const [cliente, planos, servicosDisponiveis] = await Promise.all([
+          clientesService.getById(id), planosService.getAll(), servicosService.getAll(),
+        ])
+        setPlanosConfig(planos)
+        setServicosConfig(servicosDisponiveis)
+        if (!cliente) { setNaoEncontrado(true); return }
+        setForm({
+          empresa: cliente.empresa || '', contacto: cliente.contacto || '',
+          email: cliente.email || '', telefone: cliente.telefone || '',
+          plano: cliente.plano, faseSite: (cliente.faseSite as FaseSite) || 'SEM_SITE',
+          mrr: cliente.mrr || 0, status: cliente.status,
+          driveUrl: cliente.driveUrl || '', canvaUrl: cliente.canvaUrl || '',
+          dominioUrl: cliente.dominioUrl || '', whatsappUrl: cliente.whatsappUrl || '',
+          instagram: cliente.instagram || '', notas: cliente.notas || '',
+        })
+        setServicos(cliente.servicos && cliente.servicos.length ? cliente.servicos : SERVICOS_BASE[cliente.plano])
+        setKpis(cliente.kpis && cliente.kpis.length ? cliente.kpis : kpisPorOmissao(cliente.plano))
+      } catch (e) {
+        console.error('Falha ao carregar cliente', e)
+        setErroCarregamento(true)
+      } finally {
+        setCarregando(false)
+      }
     }
     load()
   }, [id])
@@ -145,6 +156,12 @@ export default function EditarClientePage() {
 
   if (carregando) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
   if (naoEncontrado) return <div className="flex h-full items-center justify-center" style={{ color: 'var(--text-muted)' }}>Cliente não encontrado</div>
+  if (erroCarregamento) return (
+    <div className="flex h-full items-center justify-center" style={{ flexDirection: 'column', gap: 10, color: 'var(--text-muted)' }}>
+      <div>Não foi possível carregar os dados do cliente.</div>
+      <button onClick={() => window.location.reload()} className="btn btn-ghost">Tentar novamente</button>
+    </div>
+  )
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--bg-base)' }}>

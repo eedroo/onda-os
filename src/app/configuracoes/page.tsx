@@ -56,6 +56,9 @@ export default function ConfiguracoesPage() {
 
   async function load() {
     setLoading(true)
+    // Corre à parte do resto — uma falha a semear os KPIs não deve impedir
+    // as restantes abas (Categorias, Serviços, etc.) de carregar.
+    seedKpiDefinicoes().then(setKpiDefinicoes).catch(e => console.error('Falha ao carregar definições de KPI', e))
     try {
       let [c, s, p, u, bp, nc] = await Promise.all([
         categoriasService.getAll(), servicosService.getAll(), planosService.getAll(), usuariosService.getAll(),
@@ -65,8 +68,7 @@ export default function ConfiguracoesPage() {
         await seedConfiguracoes()
         ;[c, s, p] = await Promise.all([categoriasService.getAll(), servicosService.getAll(), planosService.getAll()])
       }
-      const kd = await seedKpiDefinicoes()
-      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp); setNotificacoesConfig(nc); setKpiDefinicoes(kd)
+      setCategorias(c); setServicos(s); setPlanos(p); setUsuarios(u); setBriefingPerguntas(bp); setNotificacoesConfig(nc)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
