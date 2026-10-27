@@ -65,6 +65,37 @@ function inicioSemana(data: Date): Date {
   return d
 }
 
+function dataISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+type FiltroData = 'todas' | 'hoje' | 'semana' | 'atrasadas' | 'sem_data'
+const FILTROS_DATA: { id: FiltroData; label: string }[] = [
+  { id: 'todas', label: 'Todas' },
+  { id: 'hoje', label: 'Hoje' },
+  { id: 'semana', label: 'Esta semana' },
+  { id: 'atrasadas', label: 'Atrasadas' },
+  { id: 'sem_data', label: 'Sem data' },
+]
+
+// Filtro por data-limite para a vista Status — "atrasadas" exclui as já
+// concluídas (uma tarefa concluída com prazo no passado não é um atraso).
+function passaFiltroData(t: Tarefa, filtro: FiltroData, hoje: Date): boolean {
+  if (filtro === 'todas') return true
+  if (filtro === 'sem_data') return !t.dataLimite
+  if (!t.dataLimite) return false
+  const hojeStr = dataISO(hoje)
+  if (filtro === 'hoje') return t.dataLimite === hojeStr
+  if (filtro === 'atrasadas') return t.dataLimite < hojeStr && t.status !== 'CONCLUIDA'
+  if (filtro === 'semana') {
+    const segunda = inicioSemana(hoje)
+    const domingo = new Date(segunda)
+    domingo.setDate(domingo.getDate() + 6)
+    return t.dataLimite >= dataISO(segunda) && t.dataLimite <= dataISO(domingo)
+  }
+  return true
+}
+
 interface TarefasBoardProps {
   tarefas: Tarefa[]
   categoriasConfig: Categoria[]
@@ -93,6 +124,7 @@ export default function TarefasBoard({
   const [criandoChave, setCriandoChave] = useState<string | null>(null)
   const [novoTitulo, setNovoTitulo] = useState('')
   const [ordenacaoData, setOrdenacaoData] = useState<DirecaoData | null>(null)
+  const [filtroData, setFiltroData] = useState<FiltroData>('todas')
   const [semanaOffset, setSemanaOffset] = useState(0)
   const altAtivoRef = useRef(false)
   const hoje = new Date()
@@ -225,7 +257,8 @@ export default function TarefasBoard({
 
   function KanbanStatus() {
     const colunas = STATUS_OPTIONS.map(o => o.value)
-    const itensOrdenados = ordenacaoData ? [...tarefas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefas
+    const tarefasFiltradas = filtroData === 'todas' ? tarefas : tarefas.filter(t => passaFiltroData(t, filtroData, hoje))
+    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
@@ -568,6 +601,17 @@ export default function TarefasBoard({
           </button>
         )}
       </div>
+
+      {vista === 'status' && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+          {FILTROS_DATA.map(f => (
+            <button key={f.id} onClick={() => setFiltroData(f.id)}
+              style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11.5, cursor: 'pointer', border: filtroData === f.id ? '1px solid var(--brand)' : '1px solid var(--border-subtle)', backgroundColor: filtroData === f.id ? 'color-mix(in srgb, var(--brand) 15%, transparent)' : 'var(--bg-input)', color: filtroData === f.id ? 'var(--accent-blue)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {tarefas.length === 0 && !onCriar ? (
         <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-faint)' }}>Sem tarefas</div>
