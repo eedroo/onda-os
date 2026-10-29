@@ -3,6 +3,12 @@ import { getAuth } from 'firebase-admin/auth'
 import { getAdminDb } from '@/lib/firebaseAdmin'
 import { gerarRelatorio } from '@/lib/relatorioGenerator'
 
+// O limite por omissão da Vercel (10s no plano Hobby) é curto demais para
+// ler várias colecções do Firestore e depois esperar pelo Gemini — sem
+// isto, a função podia ser cortada a meio e o pedido no browser ficava
+// pendurado em vez de receber um erro.
+export const maxDuration = 60
+
 const TIPOS_VALIDOS = ['diario', 'semanal', 'mensal'] as const
 
 async function autorizado(req: NextRequest): Promise<boolean> {

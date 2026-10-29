@@ -5,49 +5,68 @@ interface RespostaGemini {
   acoes: { prioridade: 'P1' | 'P2' | 'P3'; texto: string }[]
 }
 
+// Sem isto, um Gemini lento ou sem resposta deixava o pedido pendurado
+// indefinidamente — o botão "Gerar relatório" ficava a girar para sempre,
+// porque o fetch nunca chegava a resolver nem a rejeitar.
+const TIMEOUT_MS = 45_000
+
 export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada')
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              secoes: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: { titulo: { type: 'string' }, texto: { type: 'string' } },
-                  required: ['titulo', 'texto'],
-                },
-              },
-              acoes: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    prioridade: { type: 'string', enum: ['P1', 'P2', 'P3'] },
-                    texto: { type: 'string' },
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                secoes: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: { titulo: { type: 'string' }, texto: { type: 'string' } },
+                    required: ['titulo', 'texto'],
                   },
-                  required: ['prioridade', 'texto'],
+                },
+                acoes: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      prioridade: { type: 'string', enum: ['P1', 'P2', 'P3'] },
+                      texto: { type: 'string' },
+                    },
+                    required: ['prioridade', 'texto'],
+                  },
                 },
               },
+              required: ['secoes', 'acoes'],
             },
-            required: ['secoes', 'acoes'],
           },
-        },
-      }),
+        }),
+      }
+    )
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(`Gemini não respondeu em ${TIMEOUT_MS / 1000}s`)
     }
-  )
+    throw e
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${await res.text()}`)
 

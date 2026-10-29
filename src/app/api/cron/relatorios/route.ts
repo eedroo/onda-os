@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gerarRelatorio } from '@/lib/relatorioGenerator'
 
+// Num dia em que gera os 3 relatórios (diário + semanal à segunda + mensal
+// no dia 1), isto pode significar 3 chamadas sequenciais ao Gemini — dar
+// margem suficiente para não ser cortado a meio pela Vercel.
+export const maxDuration = 300
+
 // Um único cron job diário (mantém-se dentro do limite de qualquer plano do
 // Vercel) que gera sempre o relatório diário e, nos dias certos, também o
 // semanal (segunda-feira) e o mensal (dia 1).
