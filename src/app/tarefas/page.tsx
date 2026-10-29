@@ -5,6 +5,7 @@ import { CheckSquare, Loader2 } from 'lucide-react'
 import { clientesService, tarefasService, projetosService, categoriasService, type Tarefa, type Cliente, type Categoria, type TarefaStatus, type Projeto } from '@/lib/db'
 import TarefasBoard from '@/components/tarefas/TarefasBoard'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { NovaTarefaButton } from '@/components/tarefas/NovaTarefaButton'
 
 export default function TarefasPage() {
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
@@ -104,17 +105,19 @@ export default function TarefasPage() {
 
   const tarefasFiltradas = clienteFiltro === 'TODOS' ? tarefas : tarefas.filter(t => t.clienteId === clienteFiltro)
   const clienteNomePorId = Object.fromEntries(clientes.map(c => [c.id, c.empresa]))
+  const projetoNomePorId = Object.fromEntries(projetos.map(p => [p.id, p.nome]))
 
   if (loading) return <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-blue)' }} /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-base)' }}>
-      <PageHeader title="Tarefas" icon={CheckSquare} actions={
+      <PageHeader title="Tarefas" icon={CheckSquare} actions={<>
         <select value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)} style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 10px', fontSize: 12, color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer' }}>
           <option value="TODOS">Todos os clientes</option>
           {clientes.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
         </select>
-      } />
+        <NovaTarefaButton clienteIdInicial={clienteFiltro !== 'TODOS' ? clienteFiltro : undefined} onCriada={load} />
+      </>} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 20, minWidth: 0 }}>
         {tarefas.length === 0 && (clienteFiltro === 'TODOS' || !projetoAlvo(clienteFiltro)) ? (
@@ -134,6 +137,7 @@ export default function TarefasPage() {
             onCriar={clienteFiltro !== 'TODOS' ? criarTarefaInline : undefined}
             onDuplicar={duplicarTarefaComData}
             clienteNomePorId={clienteFiltro === 'TODOS' ? clienteNomePorId : undefined}
+            projetoNomePorId={projetoNomePorId}
           />
         )}
       </div>

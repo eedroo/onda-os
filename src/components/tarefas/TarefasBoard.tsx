@@ -36,9 +36,9 @@ const NOMES_DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'S�
 
 type Vista = 'status' | 'calendario' | 'categoria' | 'semana'
 const VISTAS: { id: Vista; label: string; icon: typeof LayoutGrid }[] = [
-  { id: 'status', label: 'Status', icon: LayoutGrid },
   { id: 'semana', label: 'Semana', icon: CalendarDays },
   { id: 'calendario', label: 'Calendário', icon: CalendarIcon },
+  { id: 'status', label: 'Status', icon: LayoutGrid },
   { id: 'categoria', label: 'Categoria', icon: Tag },
 ]
 
@@ -111,15 +111,19 @@ interface TarefasBoardProps {
   // como um arrastar normal (move em vez de duplicar).
   onDuplicar?: (origemId: string, novaData: string) => void
   clienteNomePorId?: Record<string, string>
+  // Quando passado, cada cartão ganha uma pílula com o nome do projecto a
+  // que a tarefa pertence (link para esse projecto) — útil sempre que a
+  // vista pode misturar tarefas de mais do que um projecto do mesmo cliente.
+  projetoNomePorId?: Record<string, string>
   mesInicial?: number
   anoInicial?: number
 }
 
 export default function TarefasBoard({
-  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, onReordenar, onDuplicar, clienteNomePorId,
+  tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, onReordenar, onDuplicar, clienteNomePorId, projetoNomePorId,
   mesInicial, anoInicial,
 }: TarefasBoardProps) {
-  const [vista, setVista] = useState<Vista>('status')
+  const [vista, setVista] = useState<Vista>('semana')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [criandoChave, setCriandoChave] = useState<string | null>(null)
   const [novoTitulo, setNovoTitulo] = useState('')
@@ -214,9 +218,20 @@ export default function TarefasBoard({
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{CATEGORIA_EMOJI[tarefa.categoria] || '📌'} {tarefa.categoria}</span>
-          {clienteNomePorId && (
-            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, backgroundColor: 'var(--bg-input)', color: 'var(--text-faint)' }}>{clienteNomePorId[tarefa.clienteId] || ''}</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {projetoNomePorId && projetoNomePorId[tarefa.projetoId] && (
+              <Link href={`/projetos/${tarefa.projetoId}`} title="Abrir projecto"
+                style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, backgroundColor: 'var(--pill-blue-bg)', color: 'var(--accent-blue)', textDecoration: 'none' }}>
+                {projetoNomePorId[tarefa.projetoId]}
+              </Link>
+            )}
+            {clienteNomePorId && clienteNomePorId[tarefa.clienteId] && (
+              <Link href={`/clientes/${tarefa.clienteId}`} title="Abrir cliente"
+                style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, backgroundColor: 'var(--bg-input)', color: 'var(--text-faint)', textDecoration: 'none' }}>
+                {clienteNomePorId[tarefa.clienteId]}
+              </Link>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onPointerDown={e => e.stopPropagation()}>
             <Clock size={10} style={{ color: 'var(--text-faint)' }} />
             <DatePicker value={tarefa.dataLimite} onChange={v => onUpdateDataLimite(tarefa.id!, v)} compact />
@@ -463,7 +478,7 @@ export default function TarefasBoard({
         <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 3 }}>{dia}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {itens.map(t => (
-            <DraggableTarefaChip key={t.id} tarefa={t} onToggle={onToggle} />
+            <DraggableTarefaChip key={t.id} tarefa={t} />
           ))}
         </div>
         {onCriar && (
@@ -488,42 +503,81 @@ export default function TarefasBoard({
     )
   }
 
-  function DraggableTarefaChip({ tarefa, onToggle: onToggleChip }: { tarefa: Tarefa; onToggle: (id: string, status: TarefaStatus) => void }) {
+  function DraggableTarefaChip({ tarefa }: { tarefa: Tarefa }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: tarefa.id! })
+    const statusInfo = STATUS_OPTIONS.find(s => s.value === tarefa.status)
+    const chave = `cal-${tarefa.id}`
     return (
       <div ref={setNodeRef} {...attributes} {...listeners}
-        onClick={() => onToggleChip(tarefa.id!, tarefa.status)}
-        title={tarefa.titulo}
         style={{
+          position: 'relative', display: 'flex', alignItems: 'center', gap: 3,
           fontSize: 9, padding: '2px 4px', borderRadius: 3, cursor: 'grab',
-          backgroundColor: tarefa.status === 'CONCLUIDA' ? 'var(--pill-green-bg)' : 'var(--pill-blue-bg)',
-          color: tarefa.status === 'CONCLUIDA' ? 'var(--accent-green)' : 'var(--accent-blue)',
-          textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          backgroundColor: statusInfo?.bg, color: statusInfo?.color,
           opacity: isDragging ? 0 : 1,
           transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
           touchAction: 'none',
         }}>
-        {tarefa.titulo}
+        <button onClick={() => setOpenDropdown(openDropdown === chave ? null : chave)} onPointerDown={e => e.stopPropagation()}
+          title={statusInfo?.label} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: statusInfo?.color, border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }} />
+        <Link href={`/tarefas/${tarefa.id}`} title={projetoNomePorId?.[tarefa.projetoId] ? `${tarefa.titulo} — ${projetoNomePorId[tarefa.projetoId]}` : tarefa.titulo} onPointerDown={e => e.stopPropagation()}
+          style={{ color: 'inherit', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+          {tarefa.titulo}
+        </Link>
+        {openDropdown === chave && (
+          <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', left: 0, top: '100%', marginTop: 2, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: 8, overflow: 'hidden', zIndex: 200, minWidth: 110, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+            {STATUS_OPTIONS.map(opt => (
+              <button key={opt.value}
+                onMouseDown={e => { e.preventDefault(); onSetStatus(tarefa.id!, opt.value); setOpenDropdown(null) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', fontSize: 11, textAlign: 'left', border: 'none', cursor: 'pointer', backgroundColor: tarefa.status === opt.value ? opt.bg : 'transparent', color: opt.color, fontWeight: tarefa.status === opt.value ? 600 : 400 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: opt.color, flexShrink: 0 }} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
 
   function SemDataLinha({ tarefa }: { tarefa: Tarefa }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: tarefa.id! })
+    const statusInfo = STATUS_OPTIONS.find(s => s.value === tarefa.status)
+    const chave = `semdata-${tarefa.id}`
     return (
       <div ref={setNodeRef} {...attributes} {...listeners}
-        onClick={() => onToggle(tarefa.id!, tarefa.status)}
         style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', borderRadius: 4, cursor: 'grab',
-          fontSize: 12, color: tarefa.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)',
-          textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none',
+          position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', borderRadius: 4, cursor: 'grab',
+          fontSize: 12, color: 'var(--text-secondary)',
           opacity: isDragging ? 0 : 1,
           transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
           touchAction: 'none',
         }}>
-        {tarefa.status === 'CONCLUIDA' ? <CheckSquare size={13} style={{ color: 'var(--brand)' }} /> : <Square size={13} style={{ color: 'var(--text-faint)' }} />}
-        {tarefa.titulo}
+        <button onClick={() => setOpenDropdown(openDropdown === chave ? null : chave)} onPointerDown={e => e.stopPropagation()}
+          title={statusInfo?.label} style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+          {tarefa.status === 'CONCLUIDA' ? <CheckSquare size={13} style={{ color: 'var(--brand)' }} /> : <Square size={13} style={{ color: statusInfo?.color }} />}
+        </button>
+        <Link href={`/tarefas/${tarefa.id}`} onPointerDown={e => e.stopPropagation()}
+          style={{ color: 'inherit', textDecoration: tarefa.status === 'CONCLUIDA' ? 'line-through' : 'none', flex: 1, minWidth: 0 }}>
+          {tarefa.titulo}
+        </Link>
+        {projetoNomePorId && projetoNomePorId[tarefa.projetoId] && (
+          <Link href={`/projetos/${tarefa.projetoId}`} onPointerDown={e => e.stopPropagation()} title="Abrir projecto"
+            style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, backgroundColor: 'var(--pill-blue-bg)', color: 'var(--accent-blue)', textDecoration: 'none', flexShrink: 0 }}>
+            {projetoNomePorId[tarefa.projetoId]}
+          </Link>
+        )}
+        {openDropdown === chave && (
+          <div onPointerDown={e => e.stopPropagation()} style={{ position: 'absolute', left: 0, top: '100%', marginTop: 2, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: 8, overflow: 'hidden', zIndex: 200, minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+            {STATUS_OPTIONS.map(opt => (
+              <button key={opt.value}
+                onMouseDown={e => { e.preventDefault(); onSetStatus(tarefa.id!, opt.value); setOpenDropdown(null) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, textAlign: 'left', border: 'none', cursor: 'pointer', backgroundColor: tarefa.status === opt.value ? opt.bg : 'transparent', color: opt.color, fontWeight: tarefa.status === opt.value ? 600 : 400 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: opt.color, flexShrink: 0 }} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }

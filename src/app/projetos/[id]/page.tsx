@@ -261,7 +261,14 @@ export default function ProjetoPage() {
           {projeto.nome}
           <Pencil size={13} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
         </span>
-      )} subtitle={`${concluidas} de ${tarefas.length} tarefas concluídas`} onBack={() => router.back()} actions={
+      )} subtitle={<>
+        {cliente && (
+          <Link href={`/clientes/${projeto.clienteId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', textDecoration: 'none' }}>
+            {cliente.empresa} <ExternalLink size={11} />
+          </Link>
+        )}
+        {cliente && ' · '}{concluidas} de {tarefas.length} tarefas concluídas
+      </>} onBack={() => router.back()} actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 20, fontWeight: 600, color: projeto.progresso >= 75 ? 'var(--accent-green)' : 'var(--accent-blue)' }}>

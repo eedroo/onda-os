@@ -80,6 +80,8 @@ export default function ClientePage() {
     return map
   }, [briefingRespostas])
 
+  const projetoNomePorId = useMemo(() => Object.fromEntries(projetos.map(p => [p.id, p.nome])), [projetos])
+
   const categoriasComDados = useMemo(() => {
     const idsComDados = new Set(historico.flatMap(h => h.valores.map(v => v.kpiId)))
     const ordem = Object.keys(KPI_CATEGORIA_INFO) as KPICategoria[]
@@ -406,6 +408,7 @@ export default function ClientePage() {
                 onUpdateDataLimite={updateDataLimiteTarefa}
                 onCriar={criarTarefaInline}
                 onDuplicar={duplicarTarefaComData}
+                projetoNomePorId={projetoNomePorId}
               />
             </div>
           )}

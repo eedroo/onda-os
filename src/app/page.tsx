@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { clientesService, projetosService, tarefasService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { NovaTarefaButton } from '@/components/tarefas/NovaTarefaButton'
 
 export default function Home() {
   const router = useRouter()
@@ -17,20 +18,19 @@ export default function Home() {
   const [projetos, setProjetos] = useState<Projeto[]>([])
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
 
-  useEffect(() => {
-    async function load() {
-      const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
-      setClientes(c)
-      setProjetos(p)
-      if (c.length) {
-        const ids = c.map(x => x.id!).filter(Boolean)
-        const t = await tarefasService.getPendentes(ids)
-        setTarefas(t)
-      }
-      setLoading(false)
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
+    setClientes(c)
+    setProjetos(p)
+    if (c.length) {
+      const ids = c.map(x => x.id!).filter(Boolean)
+      const t = await tarefasService.getPendentes(ids)
+      setTarefas(t)
     }
-    load()
-  }, [])
+    setLoading(false)
+  }
 
   async function toggleTarefa(tarefa: Tarefa) {
     const novo = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
@@ -70,13 +70,7 @@ export default function Home() {
     { label: 'MRR',               value: `${mrr.toLocaleString('pt-PT')}€`, sub: `${clientesAtivos.length} clientes`,                                        color: 'var(--accent-purple)', border: 'var(--accent-purple)', icon: Coins },
   ]
 
-  const shortcuts = [
-    { label: '+ Cliente',  href: '/clientes/novo', color: 'var(--accent-blue)' },
-    { label: '+ Projetos', href: '/projetos',       color: 'var(--accent-teal)' },
-    { label: '+ Tarefas',  href: '/tarefas',        color: 'var(--accent-green)' },
-    { label: '+ Financeiro', href: '/financeiro',   color: 'var(--accent-purple)' },
-    { label: '+ Lead',     href: '/leads',          color: 'var(--accent-amber)' },
-  ]
+  const atalhoStyle = { textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, transition: 'border-color 0.15s', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
 
   if (loading) return (
     <div className="flex h-full items-center justify-center">
@@ -208,11 +202,13 @@ export default function Home() {
             <Plus size={12} /> Atalhos rápidos
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8 }}>
-            {shortcuts.map(s => (
-              <Link key={s.href} href={s.href} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, transition: 'border-color 0.15s' }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: s.color }}>{s.label}</span>
-              </Link>
-            ))}
+            <Link href="/clientes/novo" style={atalhoStyle}><span style={{ color: 'var(--accent-blue)' }}>+ Cliente</span></Link>
+            <Link href="/projetos" style={atalhoStyle}><span style={{ color: 'var(--accent-teal)' }}>+ Projetos</span></Link>
+            <NovaTarefaButton className="" style={atalhoStyle} onCriada={load}>
+              <span style={{ color: 'var(--accent-green)' }}>+ Tarefas</span>
+            </NovaTarefaButton>
+            <Link href="/financeiro" style={atalhoStyle}><span style={{ color: 'var(--accent-purple)' }}>+ Financeiro</span></Link>
+            <Link href="/leads" style={atalhoStyle}><span style={{ color: 'var(--accent-amber)' }}>+ Lead</span></Link>
           </div>
         </div>
 

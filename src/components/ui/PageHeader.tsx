@@ -10,7 +10,7 @@ export function PageHeader({
   actions,
 }: {
   title: ReactNode
-  subtitle?: string
+  subtitle?: ReactNode
   icon?: LucideIcon
   onBack?: () => void
   actions?: ReactNode
