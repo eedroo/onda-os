@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { CheckSquare, Square, Clock, Trash2, LayoutGrid, Calendar as CalendarIcon, CalendarDays, Tag, ChevronLeft, ChevronRight, Plus, Sparkle, ArrowUpDown, ArrowUp, ArrowDown, EyeOff, Eye } from 'lucide-react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors, PointerSensor, type DragEndEvent } from '@dnd-kit/core'
@@ -258,9 +258,12 @@ export default function TarefasBoard({
 
   function KanbanStatus() {
     const colunas = STATUS_OPTIONS.map(o => o.value)
-    const tarefasFiltradas = (filtroData === 'todas' ? tarefas : tarefas.filter(t => passaFiltroData(t, filtroData, hoje)))
-      .filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
-    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+    const itensOrdenados = useMemo(() => {
+      const tarefasFiltradas = (filtroData === 'todas' ? tarefas : tarefas.filter(t => passaFiltroData(t, filtroData, hoje)))
+        .filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
+      return ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tarefas, filtroData, esconderConcluidas, ordenacaoData])
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
@@ -304,8 +307,11 @@ export default function TarefasBoard({
   function KanbanCategoria() {
     const nomesConfigurados = categoriasConfig.map(c => c.nome)
     const colunas = [...nomesConfigurados, '__nenhuma__']
-    const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
-    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+    const itensOrdenados = useMemo(() => {
+      const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
+      return ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tarefas, esconderConcluidas, ordenacaoData])
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
@@ -376,8 +382,11 @@ export default function TarefasBoard({
     const colunas = dias.map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
     const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
 
-    const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
-    const itensOrdenados = ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+    const itensOrdenados = useMemo(() => {
+      const tarefasFiltradas = tarefas.filter(t => !esconderConcluidas || t.status !== 'CONCLUIDA')
+      return ordenacaoData ? [...tarefasFiltradas].sort((a, b) => compararPorData(a, b, ordenacaoData)) : tarefasFiltradas
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tarefas, esconderConcluidas, ordenacaoData])
     const { grupos, activeId, sensors, handleDragStart, handleDragOver, handleDragEnd } = useKanbanDnd<Tarefa>({
       itens: itensOrdenados, colunas,
       getId: t => t.id!,
