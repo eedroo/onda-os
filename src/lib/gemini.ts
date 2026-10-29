@@ -29,6 +29,11 @@ export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3,
+            // Isto não é raciocínio complexo, é extração/síntese estruturada
+            // a partir de dados já tratados — "low" evita o tempo extra do
+            // "thinking" (que por omissão é "medium" neste modelo e foi o
+            // que levava a chamada a ultrapassar os 45s).
+            thinkingConfig: { thinkingLevel: 'low' },
             responseMimeType: 'application/json',
             responseSchema: {
               type: 'object',
