@@ -1,4 +1,9 @@
-const GEMINI_MODEL = 'gemini-3.8-flash'
+// gemini-3.8-flash estava a devolver 503 "high demand" de forma consistente
+// (confirmado por testes directos à API, fora desta app) — gemini-2.5-flash
+// é o que as outras integrações Gemini desta conta já usam de forma
+// estável, por isso ficamos com ele em vez de perseguir o modelo mais
+// recente.
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 interface RespostaGemini {
   secoes: { titulo: string; texto: string }[]
@@ -8,18 +13,21 @@ interface RespostaGemini {
 // Sem isto, um Gemini lento ou sem resposta deixava o pedido pendurado
 // indefinidamente — o botão "Gerar relatório" ficava a girar para sempre,
 // porque o fetch nunca chegava a resolver nem a rejeitar.
-const TIMEOUT_MS = 45_000
+const TIMEOUT_MS = 25_000
+// 503 "high demand" é um erro transitório que a própria Google recomenda
+// resolver com retry — uma segunda tentativa, com uma pequena pausa, chega
+// para a maioria dos casos sem arriscar o limite de tempo da função.
+const TENTATIVAS = 2
+const BACKOFF_MS = 3_000
 
-export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
+async function pedirAoGemini(prompt: string): Promise<Response> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada')
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
-  let res: Response
   try {
-    res = await fetch(
+    return await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
@@ -29,11 +37,6 @@ export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3,
-            // Isto não é raciocínio complexo, é extração/síntese estruturada
-            // a partir de dados já tratados — "low" evita o tempo extra do
-            // "thinking" (que por omissão é "medium" neste modelo e foi o
-            // que levava a chamada a ultrapassar os 45s).
-            thinkingConfig: { thinkingLevel: 'low' },
             responseMimeType: 'application/json',
             responseSchema: {
               type: 'object',
@@ -72,7 +75,25 @@ export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
   } finally {
     clearTimeout(timeout)
   }
+}
 
+export async function gerarComGemini(prompt: string): Promise<RespostaGemini> {
+  let res: Response | null = null
+  let ultimoErro: unknown = null
+
+  for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
+    try {
+      res = await pedirAoGemini(prompt)
+      if (res.ok || res.status !== 503) break
+      ultimoErro = new Error(`Gemini API error: ${res.status} ${await res.text()}`)
+    } catch (e) {
+      ultimoErro = e
+      res = null
+    }
+    if (tentativa < TENTATIVAS) await new Promise(r => setTimeout(r, BACKOFF_MS))
+  }
+
+  if (!res) throw ultimoErro
   if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${await res.text()}`)
 
   const json = await res.json()
