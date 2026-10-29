@@ -1,41 +1,80 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, Calendar, Briefcase, Coins, AlertTriangle, Plus, Loader2, CheckSquare, Square } from 'lucide-react'
+import { Users, Calendar, Briefcase, Coins, AlertTriangle, Plus, Loader2, CheckSquare } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { clientesService, projetosService, tarefasService, type Tarefa, type Cliente, type Projeto } from '@/lib/db'
+import {
+  clientesService, projetosService, tarefasService, categoriasService,
+  type Tarefa, type Cliente, type Projeto, type Categoria, type TarefaStatus,
+} from '@/lib/db'
 import { useAuth } from '@/lib/auth'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { NovaTarefaButton } from '@/components/tarefas/NovaTarefaButton'
+import TarefasBoard from '@/components/tarefas/TarefasBoard'
 
 export default function Home() {
-  const router = useRouter()
   const { perfil } = useAuth()
   const primeiroNome = perfil?.nome?.split(' ')[0] || 'Utilizador'
   const [loading, setLoading] = useState(true)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
+  const [categoriasConfig, setCategoriasConfig] = useState<Categoria[]>([])
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    const [c, p] = await Promise.all([clientesService.getAll(), projetosService.getAll()])
+    const [c, p, cats] = await Promise.all([clientesService.getAll(), projetosService.getAll(), categoriasService.getAll()])
     setClientes(c)
     setProjetos(p)
+    setCategoriasConfig(cats)
     if (c.length) {
       const ids = c.map(x => x.id!).filter(Boolean)
-      const t = await tarefasService.getPendentes(ids)
+      const t = await tarefasService.getByClientes(ids)
       setTarefas(t)
     }
     setLoading(false)
   }
 
-  async function toggleTarefa(tarefa: Tarefa) {
-    const novo = tarefa.status === 'CONCLUIDA' ? 'PENDENTE' as const : 'CONCLUIDA' as const
-    await tarefasService.update(tarefa.id!, { status: novo })
-    setTarefas(prev => prev.map(t => t.id === tarefa.id ? { ...t, status: novo } : t))
+  async function recalcularProgressoDoProjeto(tarefasAtualizadas: Tarefa[], projetoId: string) {
+    const doProjeto = tarefasAtualizadas.filter(t => t.projetoId === projetoId)
+    if (!doProjeto.length) return
+    const conc = doProjeto.filter(t => t.status === 'CONCLUIDA').length
+    await projetosService.update(projetoId, { progresso: Math.round((conc / doProjeto.length) * 100) })
+  }
+
+  async function setStatusTarefa(tarefaId: string, novoStatus: TarefaStatus) {
+    const atualizadas = tarefas.map(t => t.id === tarefaId ? { ...t, status: novoStatus } : t)
+    setTarefas(atualizadas)
+    await tarefasService.updateStatus(tarefaId, novoStatus)
+    const tarefa = tarefas.find(t => t.id === tarefaId)
+    if (tarefa) await recalcularProgressoDoProjeto(atualizadas, tarefa.projetoId)
+  }
+
+  async function toggleTarefa(tarefaId: string, statusAtual: TarefaStatus) {
+    await setStatusTarefa(tarefaId, statusAtual === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA')
+  }
+
+  async function updateDataLimiteTarefa(tarefaId: string, data: string) {
+    setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, dataLimite: data } : t))
+    await tarefasService.update(tarefaId, { dataLimite: data || undefined })
+  }
+
+  async function duplicarTarefaComData(origemId: string, novaData: string) {
+    const original = tarefas.find(t => t.id === origemId)
+    if (!original) return
+    const doProjeto = tarefas.filter(t => t.projetoId === original.projetoId)
+    const ordem = doProjeto.length ? Math.max(...doProjeto.map(t => t.ordem)) + 1 : 1
+    const dadosTarefa = {
+      projetoId: original.projetoId, clienteId: original.clienteId, titulo: original.titulo,
+      descricao: original.descricao, categoria: original.categoria, frequencia: original.frequencia,
+      servicoId: original.servicoId, servicoNome: original.servicoNome, prioridade: original.prioridade,
+      status: 'PENDENTE' as TarefaStatus, ordem, dataLimite: novaData,
+    }
+    const novoId = await tarefasService.create(dadosTarefa)
+    const atualizadas = [...tarefas, { id: novoId, ...dadosTarefa }]
+    setTarefas(atualizadas)
+    await recalcularProgressoDoProjeto(atualizadas, original.projetoId)
   }
 
   const dateStr = new Date().toLocaleDateString('pt-PT', {
@@ -47,7 +86,6 @@ export default function Home() {
   const mrr = clientesAtivos.reduce((s, c) => s + c.mrr, 0)
   const projetosAtivos = projetos.filter(p => p.status !== 'CONCLUIDO')
   const tarefasPendentes = tarefas.filter(t => t.status === 'PENDENTE' || t.status === 'EM_CURSO')
-  const tarefasHoje = tarefasPendentes.slice(0, 5)
 
   // Alertas — tarefas paradas, projectos sem progresso
   const alertas = []
@@ -71,6 +109,8 @@ export default function Home() {
   ]
 
   const atalhoStyle = { textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 8, transition: 'border-color 0.15s', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
+  const clienteNomePorId = Object.fromEntries(clientes.map(c => [c.id, c.empresa]))
+  const projetoNomePorId = Object.fromEntries(projetos.map(p => [p.id, p.nome]))
 
   if (loading) return (
     <div className="flex h-full items-center justify-center">
@@ -101,60 +141,41 @@ export default function Home() {
           })}
         </div>
 
-        {/* Tarefas + Alertas */}
-        <div className="onda-grid-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-
-          {/* Tarefas de hoje */}
-          <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <CheckSquare size={12} /> Tarefas pendentes
-              </div>
-              <Link href="/tarefas" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none' }}>Ver todas →</Link>
+        {/* Tarefas da semana */}
+        <div className="card" style={{ padding: 16, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <CheckSquare size={12} /> Tarefas da semana
             </div>
-
-            {tarefasHoje.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '16px 0', fontSize: 12, color: 'var(--text-faint)' }}>
-                {projetos.length === 0 ? 'Cria os projetos do mês primeiro' : '✅ Tudo em dia!'}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {tarefasHoje.map(t => (
-                  <div key={t.id} onClick={() => router.push(`/tarefas/${t.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 4px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', transition: 'opacity 0.1s' }}
-                    className="last:border-0"
-                  >
-                    <button onClick={e => { e.stopPropagation(); toggleTarefa(t) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                      {t.status === 'CONCLUIDA'
-                        ? <CheckSquare size={14} style={{ color: 'var(--brand)' }} />
-                        : <Square size={14} style={{ color: 'var(--text-faint)' }} />
-                      }
-                    </button>
-                    <span style={{ fontSize: 12.5, flex: 1, color: t.status === 'CONCLUIDA' ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: t.status === 'CONCLUIDA' ? 'line-through' : 'none' }}>
-                      {t.titulo}
-                    </span>
-                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>
-                      {clientes.find(c => c.id === t.clienteId)?.empresa?.split(' ')[0]}
-                    </span>
-                  </div>
-                ))}
-                {tarefasPendentes.length > 5 && (
-                  <Link href="/tarefas" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none', textAlign: 'center', marginTop: 8 }}>
-                    +{tarefasPendentes.length - 5} tarefas pendentes
-                  </Link>
-                )}
-              </div>
-            )}
+            <Link href="/tarefas" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none' }}>Ver todas →</Link>
           </div>
 
-          {/* Alertas */}
-          <div className="card" style={{ padding: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <AlertTriangle size={12} /> Atenção
+          {tarefas.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '16px 0', fontSize: 12, color: 'var(--text-faint)' }}>
+              {projetos.length === 0 ? 'Cria os projetos do mês primeiro' : '✅ Tudo em dia!'}
             </div>
+          ) : (
+            <TarefasBoard
+              tarefas={tarefas}
+              categoriasConfig={categoriasConfig}
+              onToggle={toggleTarefa}
+              onSetStatus={setStatusTarefa}
+              onUpdateDataLimite={updateDataLimiteTarefa}
+              onDuplicar={duplicarTarefaComData}
+              clienteNomePorId={clienteNomePorId}
+              projetoNomePorId={projetoNomePorId}
+              esconderConcluidasInicial
+            />
+          )}
+        </div>
 
-            {alertas.length === 0 ? (
+        {/* Alertas */}
+        <div className="card" style={{ padding: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <AlertTriangle size={12} /> Atenção
+          </div>
+
+          {alertas.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '16px 0', fontSize: 12, color: 'var(--text-faint)' }}>
                 ✅ Tudo em ordem!
               </div>
@@ -169,7 +190,6 @@ export default function Home() {
                 </div>
               ))
             )}
-          </div>
         </div>
 
         {/* Progresso dos projectos */}

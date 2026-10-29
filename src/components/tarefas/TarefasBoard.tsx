@@ -117,11 +117,14 @@ interface TarefasBoardProps {
   projetoNomePorId?: Record<string, string>
   mesInicial?: number
   anoInicial?: number
+  // Estado inicial do toggle "Esconder concluídas" — útil para embeds focados
+  // no que falta fazer (ex: resumo da semana no dashboard).
+  esconderConcluidasInicial?: boolean
 }
 
 export default function TarefasBoard({
   tarefas, categoriasConfig, onToggle, onSetStatus, onSetCategoria, onUpdateDataLimite, onRemover, onCriar, onReordenar, onDuplicar, clienteNomePorId, projetoNomePorId,
-  mesInicial, anoInicial,
+  mesInicial, anoInicial, esconderConcluidasInicial,
 }: TarefasBoardProps) {
   const [vista, setVista] = useState<Vista>('semana')
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -129,7 +132,7 @@ export default function TarefasBoard({
   const [novoTitulo, setNovoTitulo] = useState('')
   const [ordenacaoData, setOrdenacaoData] = useState<DirecaoData | null>(null)
   const [filtroData, setFiltroData] = useState<FiltroData>('todas')
-  const [esconderConcluidas, setEsconderConcluidas] = useState(false)
+  const [esconderConcluidas, setEsconderConcluidas] = useState(esconderConcluidasInicial ?? false)
   const [semanaOffset, setSemanaOffset] = useState(0)
   const altAtivoRef = useRef(false)
   const hoje = new Date()
